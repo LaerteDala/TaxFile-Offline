@@ -30,8 +30,20 @@ function createWindow() {
     }
 }
 
+import pkg from 'electron-updater';
+const { autoUpdater } = pkg;
+
+// Configurar autoUpdater
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = true;
+
 app.whenReady().then(() => {
     createWindow();
+
+    // Verificar atualizações apenas em produção
+    if (app.isPackaged) {
+        autoUpdater.checkForUpdatesAndNotify();
+    }
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
