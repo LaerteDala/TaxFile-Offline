@@ -1,0 +1,5 @@
+{
+  "name": "TaxFile - Digital Invoice Archive",
+  "description": "A modern ERP-style application for managing VAT invoices, suppliers, and tax reports with automated calculations and export features.",
+  "requestFramePermissions": []
+}
