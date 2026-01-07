@@ -10,7 +10,12 @@ contextBridge.exposeInMainWorld('electron', {
         addInvoice: (invoice, taxLines) => ipcRenderer.invoke('db:addInvoice', { invoice, taxLines }),
         updateInvoice: (invoice, taxLines) => ipcRenderer.invoke('db:updateInvoice', { invoice, taxLines }),
         deleteInvoice: (id) => ipcRenderer.invoke('db:deleteInvoice', id),
+        getDocumentTypes: () => ipcRenderer.invoke('db:getDocumentTypes'),
+        addDocumentType: (docType) => ipcRenderer.invoke('db:addDocumentType', docType),
+        updateDocumentType: (docType) => ipcRenderer.invoke('db:updateDocumentType', docType),
+        deleteDocumentType: (id) => ipcRenderer.invoke('db:deleteDocumentType', id),
     },
+
     fs: {
         saveFile: (fileName, buffer) => ipcRenderer.invoke('fs:saveFile', { fileName, buffer }),
         openFile: (filePath) => ipcRenderer.invoke('fs:openFile', filePath),

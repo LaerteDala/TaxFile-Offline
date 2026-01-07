@@ -39,6 +39,12 @@ ipcMain.handle('db:addSupplier', async (_, supplier) => dbOps.addSupplier(suppli
 ipcMain.handle('db:updateSupplier', async (_, supplier) => dbOps.updateSupplier(supplier));
 ipcMain.handle('db:deleteSupplier', async (_, id) => dbOps.deleteSupplier(id));
 
+ipcMain.handle('db:getDocumentTypes', async () => dbOps.getDocumentTypes());
+ipcMain.handle('db:addDocumentType', async (_, docType) => dbOps.addDocumentType(docType));
+ipcMain.handle('db:updateDocumentType', async (_, docType) => dbOps.updateDocumentType(docType));
+ipcMain.handle('db:deleteDocumentType', async (_, id) => dbOps.deleteDocumentType(id));
+
+
 ipcMain.handle('db:getInvoices', async () => dbOps.getInvoices());
 ipcMain.handle('db:addInvoice', async (_, { invoice, taxLines }) => dbOps.addInvoice(invoice, taxLines));
 ipcMain.handle('db:updateInvoice', async (_, { invoice, taxLines }) => dbOps.updateInvoice(invoice, taxLines));

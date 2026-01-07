@@ -10,16 +10,17 @@ import {
   LogOut,
   Menu,
   SearchCode,
-  Loader2
+  Loader2,
+  Settings
 } from 'lucide-react';
-import { View, Supplier, Invoice } from './types';
+import { View, Supplier, Invoice, DocumentType } from './types';
 import Dashboard from './components/Dashboard';
 import Suppliers from './components/Suppliers';
 import Invoices from './components/Invoices';
 import Reports from './components/Reports';
 import Inquiry from './components/Inquiry';
 import Login from './components/Login';
-
+import DocumentTypes from './components/DocumentTypes';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -29,6 +30,7 @@ const App: React.FC = () => {
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
 
   const hasLoadedInitialData = useRef(false);
 
@@ -39,12 +41,16 @@ const App: React.FC = () => {
       const sups = await window.electron.db.getSuppliers();
       setSuppliers(sups || []);
 
+      const docs = await window.electron.db.getDocumentTypes();
+      setDocumentTypes(docs || []);
+
       const invs = await window.electron.db.getInvoices();
 
       const formattedInvoices: Invoice[] = (invs || []).map(i => ({
         id: i.id,
         orderNumber: i.order_number,
         supplierId: i.supplier_id,
+        documentTypeId: i.document_type_id,
         date: i.date,
         documentNumber: i.document_number,
         notes: i.notes,
@@ -55,11 +61,14 @@ const App: React.FC = () => {
           taxableValue: l.taxable_value,
           rate: l.rate,
           supportedVat: l.supported_vat,
-          deductibleVat: l.deductible_vat
+          deductibleVat: l.deductible_vat,
+          isService: !!l.is_service,
+          withholdingAmount: l.withholding_amount || 0
         })),
         totalTaxable: i.total_taxable,
         totalSupported: i.total_supported,
         totalDeductible: i.total_deductible,
+        totalWithholding: i.total_withholding || 0,
         totalDocument: i.total_document
       }));
 
@@ -100,10 +109,10 @@ const App: React.FC = () => {
       localStorage.removeItem('taxfile_user');
       setSuppliers([]);
       setInvoices([]);
+      setDocumentTypes([]);
       hasLoadedInitialData.current = false;
     }
   };
-
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
@@ -113,13 +122,13 @@ const App: React.FC = () => {
     { name: 'Facturas', icon: FileText, view: 'invoices' as View },
     { name: 'Consulta', icon: SearchCode, view: 'inquiry' as View },
     { name: 'Relatórios', icon: BarChart3, view: 'reports' as View },
+    { name: 'Tipos de Doc', icon: Settings, view: 'document_types' as View },
   ];
 
   if (!session && !isLoading) {
     return <Login />;
   }
 
-  // Loader inicial apenas para quando não há sessão ou os dados base ainda não chegaram
   if (isLoading && !hasLoadedInitialData.current) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
@@ -176,7 +185,6 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-6">
-            {/* O botão manual de refresh continua disponível, mas agora é silencioso por padrão para não atrapalhar */}
             <button onClick={() => fetchData(true)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg flex items-center gap-2 text-xs font-bold transition-all">
               Actualizar Dados
             </button>
@@ -196,7 +204,6 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto p-8">
           <div className="max-w-7xl mx-auto space-y-6">
-            {/* Removido o loader que cobria a tela toda durante sincronizações silenciosas */}
             {currentView === 'dashboard' && (
               <Dashboard
                 invoices={invoices}
@@ -205,9 +212,10 @@ const App: React.FC = () => {
               />
             )}
             {currentView === 'suppliers' && <Suppliers suppliers={suppliers} setSuppliers={setSuppliers} setInvoices={setInvoices} />}
-            {currentView === 'invoices' && <Invoices invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} />}
-            {currentView === 'inquiry' && <Inquiry invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} />}
-            {currentView === 'reports' && <Reports invoices={invoices} suppliers={suppliers} />}
+            {currentView === 'invoices' && <Invoices invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} documentTypes={documentTypes} />}
+            {currentView === 'inquiry' && <Inquiry invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} documentTypes={documentTypes} />}
+            {currentView === 'reports' && <Reports invoices={invoices} suppliers={suppliers} documentTypes={documentTypes} />}
+            {currentView === 'document_types' && <DocumentTypes documentTypes={documentTypes} setDocumentTypes={setDocumentTypes} />}
           </div>
         </div>
       </main>

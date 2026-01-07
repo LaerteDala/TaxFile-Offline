@@ -24,16 +24,17 @@ import {
   FileSpreadsheet,
   FolderArchive
 } from 'lucide-react';
-import { Invoice, Supplier, TaxLine } from '../types';
+import { Invoice, Supplier, TaxLine, DocumentType } from '../types';
 import JSZip from 'jszip';
 
 interface InquiryProps {
   invoices: Invoice[];
   setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>;
   suppliers: Supplier[];
+  documentTypes: DocumentType[];
 }
 
-const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) => {
+const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, documentTypes }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -52,6 +53,7 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
   const [editDocNumber, setEditDocNumber] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [editDate, setEditDate] = useState('');
+  const [editDocumentTypeId, setEditDocumentTypeId] = useState('');
   const [newFile, setNewFile] = useState<File | null>(null);
 
   const filteredData = useMemo(() => {
@@ -74,8 +76,9 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
       taxable: acc.taxable + row.totalTaxable,
       supported: acc.supported + row.totalSupported,
       deductible: acc.deductible + row.totalDeductible,
+      withholding: acc.withholding + row.totalWithholding,
       total: acc.total + row.totalDocument
-    }), { taxable: 0, supported: 0, deductible: 0, total: 0 });
+    }), { taxable: 0, supported: 0, deductible: 0, withholding: 0, total: 0 });
   }, [filteredData]);
 
   const selectedInvoice = useMemo(() => {
@@ -83,14 +86,17 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
     const inv = invoices.find(i => i.id === selectedInvoiceId);
     if (!inv) return null;
     const supplier = suppliers.find(s => s.id === inv.supplierId);
+    const docType = documentTypes.find(dt => dt.id === inv.documentTypeId);
     return {
       ...inv,
       supplierName: supplier?.name || 'N/A',
       nif: supplier?.nif || 'N/A',
       supplierEmail: supplier?.email || 'N/A',
-      supplierAddress: supplier?.address || 'N/A'
+      supplierAddress: supplier?.address || 'N/A',
+      documentTypeCode: docType?.code || '---',
+      documentTypeName: docType?.name || '---'
     };
-  }, [selectedInvoiceId, invoices, suppliers]);
+  }, [selectedInvoiceId, invoices, suppliers, documentTypes]);
 
   const removeInvoice = async (invoice: Invoice) => {
     if (!confirm(`Deseja realmente eliminar permanentemente a factura #${invoice.documentNumber}? Esta acção é irreversível.`)) return;
@@ -112,16 +118,17 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
     }
   };
 
-
   const exportToExcel = () => {
     if (filteredData.length === 0) return;
 
-    const headers = ["Nº Ordem", "Fornecedor", "NIF", "Data", "Doc#", "Total Documento", "Total Tributável", "Total Suportado", "Total Dedutível", "Notas"];
+    const headers = ["Nº Ordem", "Tipo", "Fornecedor", "NIF", "Data", "Doc#", "Total Documento", "Total Tributável", "Total Suportado", "Total Dedutível", "Retenção", "Notas"];
 
     const rows = filteredData.map(row => {
       const supplier = suppliers.find(s => s.id === row.supplierId);
+      const docType = documentTypes.find(dt => dt.id === row.documentTypeId);
       return [
         row.orderNumber,
+        `"${docType?.code || '---'}"`,
         `"${supplier?.name || 'N/A'}"`,
         `"${supplier?.nif || 'N/A'}"`,
         row.date,
@@ -130,6 +137,7 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
         row.totalTaxable.toFixed(2).replace('.', ','),
         row.totalSupported.toFixed(2).replace('.', ','),
         row.totalDeductible.toFixed(2).replace('.', ','),
+        row.totalWithholding.toFixed(2).replace('.', ','),
         `"${(row.notes || "").replace(/\n/g, ' ')}"`
       ];
     });
@@ -166,7 +174,6 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
         const folderName = supplier?.name.replace(/[/\\?%*:|"<>]/g, '_') || "Sem Fornecedor";
         const fileName = `Factura_${inv.documentNumber.replace(/[/\\?%*:|"<>]/g, '_')}.pdf`;
 
-        // Read local file
         const buffer = await window.electron.fs.readFile(inv.pdfPath!);
         if (buffer) {
           zip.folder(folderName)?.file(fileName, buffer);
@@ -190,7 +197,6 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
     }
   };
 
-
   const handleDownload = async (invoice: Invoice) => {
     if (!invoice.hasPdf || !invoice.pdfPath) return;
     setIsDownloading(invoice.id);
@@ -203,12 +209,12 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
     }
   };
 
-
   const handleOpenDetails = (inv: Invoice) => {
     setSelectedInvoiceId(inv.id);
     setEditDocNumber(inv.documentNumber);
     setEditNotes(inv.notes || '');
     setEditDate(inv.date);
+    setEditDocumentTypeId(inv.documentTypeId || '');
     setNewFile(null);
     setIsEditing(false);
   };
@@ -232,6 +238,7 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
         documentNumber: editDocNumber,
         notes: editNotes,
         date: editDate,
+        documentTypeId: editDocumentTypeId,
         pdfPath: storagePath,
         hasPdf: !!storagePath
       };
@@ -240,7 +247,7 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
 
       setInvoices(prev => prev.map(inv => {
         if (inv.id === selectedInvoiceId) {
-          return { ...inv, documentNumber: editDocNumber, notes: editNotes, date: editDate, pdfPath: storagePath || undefined, hasPdf: !!storagePath };
+          return { ...inv, documentNumber: editDocNumber, notes: editNotes, date: editDate, documentTypeId: editDocumentTypeId, pdfPath: storagePath || undefined, hasPdf: !!storagePath };
         }
         return inv;
       }));
@@ -252,7 +259,6 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
     }
   };
 
-
   if (selectedInvoice) {
     return (
       <div className="space-y-6 animate-in slide-in-from-right-8 duration-500 pb-12">
@@ -262,7 +268,7 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
             <div>
               <div className="flex items-center gap-3">
                 <span className="px-2 py-0.5 bg-slate-200 text-slate-600 rounded-md text-[10px] font-black uppercase tracking-widest">#{selectedInvoice.orderNumber}</span>
-                <h2 className="text-2xl font-black text-slate-800">{isEditing ? 'Editando Documento' : `Factura ${selectedInvoice.documentNumber}`}</h2>
+                <h2 className="text-2xl font-black text-slate-800">{isEditing ? 'Editando Documento' : `${selectedInvoice.documentTypeCode} ${selectedInvoice.documentNumber}`}</h2>
               </div>
               <p className="text-sm text-slate-500 font-medium">Visualização detalhada do lançamento</p>
             </div>
@@ -311,6 +317,15 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1 h-1 bg-blue-600 rounded-full"></div> Dados do Documento</h3>
                   <div className="space-y-4">
                     <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Tipo de Documento</label>
+                      {isEditing ? (
+                        <select value={editDocumentTypeId} onChange={(e) => setEditDocumentTypeId(e.target.value)} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-blue-500 outline-none">
+                          <option value="">Seleccionar...</option>
+                          {documentTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.code} - {dt.name}</option>)}
+                        </select>
+                      ) : <p className="text-lg font-bold text-slate-800">{selectedInvoice.documentTypeName} ({selectedInvoice.documentTypeCode})</p>}
+                    </div>
+                    <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Nº Documento</label>
                       {isEditing ? <input type="text" value={editDocNumber} onChange={(e) => setEditDocNumber(e.target.value)} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-blue-500 outline-none" /> : <p className="text-lg font-bold text-slate-800">{selectedInvoice.documentNumber}</p>}
                     </div>
@@ -326,13 +341,32 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 pt-4 border-t border-slate-100"><Layers size={14} className="text-blue-600" /> Detalhamento de Impostos</h3>
                 <div className="overflow-hidden border border-slate-100 rounded-2xl">
                   <table className="w-full text-left">
-                    <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest"><tr><th className="px-6 py-3">Base Tributável</th><th className="px-6 py-3 text-center">Taxa</th><th className="px-6 py-3 text-right">IVA Suportado</th><th className="px-6 py-3 text-right">IVA Dedutível</th></tr></thead>
+                    <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      <tr>
+                        <th className="px-6 py-3">Base Tributável</th>
+                        <th className="px-6 py-3 text-center">IVA (%)</th>
+                        <th className="px-6 py-3 text-right">IVA Suportado</th>
+                        <th className="px-6 py-3 text-right">Retenção (6.5%)</th>
+                        <th className="px-6 py-3 text-right">IVA Dedutível</th>
+                      </tr>
+                    </thead>
                     <tbody className="divide-y divide-slate-50">
                       {selectedInvoice.lines.map((line) => (
-                        <tr key={line.id}><td className="px-6 py-4 font-bold text-slate-700">{line.taxableValue.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</td><td className="px-6 py-4 text-center"><span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-full">{line.rate}%</span></td><td className="px-6 py-4 text-right font-bold text-slate-600">{line.supportedVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td><td className="px-6 py-4 text-right font-black text-emerald-600">{line.deductibleVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td></tr>
+                        <tr key={line.id}>
+                          <td className="px-6 py-4 font-bold text-slate-700">{line.taxableValue.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</td>
+                          <td className="px-6 py-4 text-center"><span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-full">{line.rate}%</span></td>
+                          <td className="px-6 py-4 text-right font-bold text-slate-600">{line.supportedVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
+                          <td className="px-6 py-4 text-right font-bold text-amber-600">{line.withholdingAmount.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
+                          <td className="px-6 py-4 text-right font-black text-emerald-600">{line.deductibleVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
+                        </tr>
                       ))}
                     </tbody>
-                    <tfoot className="bg-slate-900 text-white font-black"><tr><td colSpan={3} className="px-6 py-4 text-sm uppercase tracking-widest">TOTAL DO DOCUMENTO</td><td className="px-6 py-4 text-right text-lg">{selectedInvoice.totalDocument.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</td></tr></tfoot>
+                    <tfoot className="bg-slate-900 text-white font-black">
+                      <tr>
+                        <td colSpan={4} className="px-6 py-4 text-sm uppercase tracking-widest">TOTAL DO DOCUMENTO</td>
+                        <td className="px-6 py-4 text-right text-lg">{selectedInvoice.totalDocument.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               </div>
@@ -432,10 +466,12 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ORD</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fornecedor</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Data</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Doc#</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">IVA Dedutível</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Retenção</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total</th>
                 <th className="px-6 py-4 text-center"></th>
               </tr>
@@ -443,13 +479,16 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
             <tbody className="divide-y divide-slate-100">
               {filteredData.map((row) => {
                 const supplier = suppliers.find(s => s.id === row.supplierId);
+                const docType = documentTypes.find(dt => dt.id === row.documentTypeId);
                 return (
                   <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-6 py-4"><span className="text-xs font-black text-slate-400 group-hover:text-blue-600 transition-colors">#{row.orderNumber}</span></td>
+                    <td className="px-6 py-4"><span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-black font-mono">{docType?.code || '---'}</span></td>
                     <td className="px-6 py-4"><p className="text-sm font-bold text-slate-800">{supplier?.name || 'N/A'}</p><p className="text-[10px] font-medium text-slate-500">{supplier?.nif || 'N/A'}</p></td>
                     <td className="px-6 py-4 text-center text-xs font-bold text-slate-600">{row.date}</td>
                     <td className="px-6 py-4 text-center"><span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-mono font-black text-slate-500 uppercase">{row.documentNumber}</span></td>
                     <td className="px-6 py-4 text-right"><span className="text-sm font-black text-emerald-600">{row.totalDeductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span></td>
+                    <td className="px-6 py-4 text-right"><span className="text-sm font-black text-amber-600">{row.totalWithholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span></td>
                     <td className="px-6 py-4 text-right font-black text-slate-900">{row.totalDocument.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -468,7 +507,7 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
               })}
               {filteredData.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-24 text-center text-slate-400 font-medium italic">Nenhum dado encontrado para os filtros seleccionados.</td>
+                  <td colSpan={9} className="px-6 py-24 text-center text-slate-400 font-medium italic">Nenhum dado encontrado para os filtros seleccionados.</td>
                 </tr>
               )}
             </tbody>

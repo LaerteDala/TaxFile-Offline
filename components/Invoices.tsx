@@ -3,17 +3,18 @@ import React, { useState, useMemo, useRef } from 'react';
 import {
   Plus, Search, Trash2, FilePlus2, Upload, ChevronLeft, AlertCircle,
   FileCheck2, Calendar, Layers, Loader2, X, Building2, Hash, FileText,
-  Eye, Edit3, Save, Download, FileX2
+  Eye, Edit3, Save, Download, FileX2, CheckSquare, Square
 } from 'lucide-react';
-import { Invoice, Supplier, TaxLine } from '../types';
+import { Invoice, Supplier, TaxLine, DocumentType } from '../types';
 
 interface InvoicesProps {
   invoices: Invoice[];
   setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>;
   suppliers: Supplier[];
+  documentTypes: DocumentType[];
 }
 
-const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers }) => {
+const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, documentTypes }) => {
   const [showCreator, setShowCreator] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,12 +24,13 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
 
   // Form State
   const [supplierId, setSupplierId] = useState('');
+  const [documentTypeId, setDocumentTypeId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [docNumber, setDocNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [taxLines, setTaxLines] = useState<TaxLine[]>([
-    { id: '1', taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0 }
+    { id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, isService: false, withholdingAmount: 0 }
   ]);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -37,22 +39,35 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
       taxable: acc.taxable + line.taxableValue,
       supported: acc.supported + line.supportedVat,
       deductible: acc.deductible + line.deductibleVat,
-      document: acc.document + line.taxableValue + line.supportedVat
-    }), { taxable: 0, supported: 0, deductible: 0, document: 0 });
+      withholding: acc.withholding + line.withholdingAmount,
+      document: acc.document + line.taxableValue + line.supportedVat - line.withholdingAmount
+    }), { taxable: 0, supported: 0, deductible: 0, withholding: 0, document: 0 });
   }, [taxLines]);
 
   const addLine = () => {
-    setTaxLines([...taxLines, { id: Math.random().toString(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0 }]);
+    setTaxLines([...taxLines, { id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, isService: false, withholdingAmount: 0 }]);
   };
 
-  const updateLine = (id: string, field: keyof TaxLine, value: number) => {
+  const updateLine = (id: string, field: keyof TaxLine, value: any) => {
     setTaxLines(taxLines.map(line => {
       if (line.id === id) {
         const updated = { ...line, [field]: value };
+
+        // Recalculate VAT
         if (field === 'taxableValue' || field === 'rate') {
           updated.supportedVat = Number((updated.taxableValue * (updated.rate / 100)).toFixed(2));
           updated.deductibleVat = updated.supportedVat;
         }
+
+        // Recalculate Withholding if it's a service
+        if (field === 'taxableValue' || field === 'isService') {
+          if (updated.isService) {
+            updated.withholdingAmount = Number((updated.taxableValue * 0.065).toFixed(2));
+          } else {
+            updated.withholdingAmount = 0;
+          }
+        }
+
         return updated;
       }
       return line;
@@ -62,6 +77,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
   const handleEdit = (inv: Invoice) => {
     setEditingInvoice(inv);
     setSupplierId(inv.supplierId);
+    setDocumentTypeId(inv.documentTypeId || '');
     setDate(inv.date);
     setDocNumber(inv.documentNumber);
     setNotes(inv.notes || '');
@@ -110,6 +126,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
       const invoiceData = {
         id: editingInvoice?.id || crypto.randomUUID(),
         supplierId,
+        documentTypeId,
         date,
         documentNumber: docNumber,
         notes,
@@ -118,6 +135,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
         totalTaxable: totals.taxable,
         totalSupported: totals.supported,
         totalDeductible: totals.deductible,
+        totalWithholding: totals.withholding,
         totalDocument: totals.document
       };
 
@@ -148,14 +166,14 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
     }
   };
 
-
   const resetForm = () => {
     setEditingInvoice(null);
     setSupplierId('');
+    setDocumentTypeId('');
     setDocNumber('');
     setNotes('');
     setSelectedFile(null);
-    setTaxLines([{ id: '1', taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0 }]);
+    setTaxLines([{ id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, isService: false, withholdingAmount: 0 }]);
   };
 
   const handleDownload = async (invoice: Invoice) => {
@@ -166,7 +184,6 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
       alert(`Erro ao abrir ficheiro: ${err.message}`);
     }
   };
-
 
   if (showCreator) {
     return (
@@ -193,7 +210,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -211,6 +228,23 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <FileText size={12} className="text-blue-600" /> TIPO DE DOCUMENTO
+                </label>
+                <select
+                  required
+                  value={documentTypeId}
+                  onChange={(e) => setDocumentTypeId(e.target.value)}
+                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all appearance-none"
+                >
+                  <option value="">Seleccionar Tipo...</option>
+                  {documentTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.code} - {dt.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <Calendar size={12} className="text-blue-600" /> DATA DA FACTURA
                 </label>
                 <input
@@ -221,9 +255,6 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
                   className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
                 />
               </div>
-            </div>
-
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <Hash size={12} className="text-blue-600" /> Nº DO DOCUMENTO
@@ -237,6 +268,9 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
                   className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
                 />
               </div>
+            </div>
+
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <FileText size={12} className="text-blue-600" /> ANEXO PDF
@@ -285,16 +319,27 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
               <table className="w-full text-left">
                 <thead className="bg-slate-50/50 border-b">
                   <tr>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Serviço?</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Tributável</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Taxa (%)</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">IVA Suportado</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">IVA Dedutível</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Retenção (6.5%)</th>
                     <th className="px-8 py-4 w-20"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {taxLines.map(l => (
                     <tr key={l.id} className="group hover:bg-slate-50/50 transition-colors">
+                      <td className="px-8 py-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => updateLine(l.id, 'isService', !l.isService)}
+                          className={`p-2 rounded-xl transition-all ${l.isService ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                        >
+                          {l.isService ? <CheckSquare size={20} /> : <Square size={20} />}
+                        </button>
+                      </td>
                       <td className="px-8 py-4">
                         <div className="relative">
                           <input
@@ -306,7 +351,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 pointer-events-none">AOA</span>
                         </div>
                       </td>
-                      <td className="px-8 py-4 w-40">
+                      <td className="px-8 py-4 w-32">
                         <select
                           value={l.rate} onChange={(e) => updateLine(l.id, 'rate', parseFloat(e.target.value))}
                           className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none text-center text-slate-900"
@@ -315,21 +360,43 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
                           <option value="7">7%</option>
                           <option value="5">5%</option>
                           <option value="2">2%</option>
+                          <option value="0">0%</option>
                         </select>
                       </td>
-                      <td className="px-8 py-4"><div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 font-black text-slate-800 text-center">{l.supportedVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</div></td>
-                      <td className="px-8 py-4"><input type="number" step="0.01" value={l.deductibleVat} onChange={(e) => updateLine(l.id, 'deductibleVat', parseFloat(e.target.value) || 0)} className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none text-emerald-600 placeholder:text-slate-400" /></td>
-                      <td className="px-8 py-4 text-right"><button type="button" onClick={() => setTaxLines(taxLines.filter(x => x.id !== l.id))} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18} /></button></td>
+                      <td className="px-8 py-4">
+                        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 font-black text-slate-800 text-center text-xs">
+                          {l.supportedVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}
+                        </div>
+                      </td>
+                      <td className="px-8 py-4">
+                        <input
+                          type="number" step="0.01" value={l.deductibleVat || ''}
+                          onChange={(e) => updateLine(l.id, 'deductibleVat', parseFloat(e.target.value) || 0)}
+                          className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 text-center text-xs"
+                          placeholder="0,00"
+                        />
+                      </td>
+                      <td className="px-8 py-4">
+                        <div className={`p-3.5 rounded-2xl border font-black text-center transition-all text-xs ${l.isService ? 'bg-amber-50 border-amber-100 text-amber-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
+                          {l.withholdingAmount.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}
+                        </div>
+                      </td>
+                      <td className="px-8 py-4 text-right">
+                        <button type="button" onClick={() => setTaxLines(taxLines.filter(x => x.id !== l.id))} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="bg-[#0f172a] p-10 px-12 grid grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="bg-[#0f172a] p-10 px-12 grid grid-cols-2 lg:grid-cols-5 gap-8">
               <div className="space-y-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">TOTAL TRIBUTÁVEL</p><p className="text-xl font-black text-white">{totals.taxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
               <div className="space-y-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">TOTAL IVA SUPORTADO</p><p className="text-xl font-black text-white">{totals.supported.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
               <div className="space-y-1"><p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">TOTAL IVA DEDUTÍVEL</p><p className="text-xl font-black text-emerald-400">{totals.deductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
+              <div className="space-y-1"><p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">TOTAL RETENÇÃO</p><p className="text-xl font-black text-amber-400">{totals.withholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
               <div className="space-y-1 border-l border-slate-800 pl-8"><p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">TOTAL DO DOCUMENTO</p><p className="text-2xl font-black text-blue-500">{totals.document.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
             </div>
           </div>
@@ -372,6 +439,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200">
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">ORD</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fornecedor</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Data</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Doc#</th>
@@ -387,6 +455,11 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
               }).map(i => (
                 <tr key={i.id} className="hover:bg-blue-50/30 transition-colors group cursor-default">
                   <td className="px-8 py-5"><span className="text-xs font-black text-slate-300 group-hover:text-blue-500 transition-colors">#{i.orderNumber}</span></td>
+                  <td className="px-8 py-5">
+                    <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-black font-mono">
+                      {documentTypes.find(dt => dt.id === i.documentTypeId)?.code || '---'}
+                    </span>
+                  </td>
                   <td className="px-8 py-5">
                     <p className="font-bold text-slate-800 text-base">{suppliers.find(s => s.id === i.supplierId)?.name || 'N/A'}</p>
                     <p className="text-[10px] font-medium text-slate-500 uppercase tracking-tighter">NIF: {suppliers.find(s => s.id === i.supplierId)?.nif || '---'}</p>

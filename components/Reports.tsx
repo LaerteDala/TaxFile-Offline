@@ -1,24 +1,25 @@
 
 import React, { useState, useMemo } from 'react';
-import { 
-  Download, 
-  Search, 
-  Eye, 
-  FileSpreadsheet, 
-  ChevronLeft, 
-  Calendar, 
+import {
+  Download,
+  Search,
+  Eye,
+  FileSpreadsheet,
+  ChevronLeft,
+  Calendar,
   Filter,
   ArrowUpRight,
   Printer
 } from 'lucide-react';
-import { Invoice, Supplier } from '../types';
+import { Invoice, Supplier, DocumentType } from '../types';
 
 interface ReportsProps {
   invoices: Invoice[];
   suppliers: Supplier[];
+  documentTypes: DocumentType[];
 }
 
-const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
+const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes }) => {
   const [showPreview, setShowPreview] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -32,25 +33,27 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
       const docNum = (inv.documentNumber || "").toLowerCase();
       const supName = (supplier?.name || "").toLowerCase();
       const term = searchTerm.toLowerCase();
-      
+
       const matchesSearch = docNum.includes(term) || supName.includes(term);
-      
-      const matchesDate = 
-        (!startDate || inv.date >= startDate) && 
+
+      const matchesDate =
+        (!startDate || inv.date >= startDate) &&
         (!endDate || inv.date <= endDate);
-      
+
       const matchesSupplier = !filterSupplier || inv.supplierId === filterSupplier;
 
       return matchesSearch && matchesDate && matchesSupplier;
     }).map(inv => {
       const supplier = suppliers.find(s => s.id === inv.supplierId);
+      const docType = documentTypes.find(dt => dt.id === inv.documentTypeId);
       return {
         ...inv,
         supplierName: supplier?.name || 'N/A',
-        nif: supplier?.nif || 'N/A'
+        nif: supplier?.nif || 'N/A',
+        documentTypeCode: docType?.code || '---'
       };
     });
-  }, [invoices, suppliers, searchTerm, startDate, endDate, filterSupplier]);
+  }, [invoices, suppliers, documentTypes, searchTerm, startDate, endDate, filterSupplier]);
 
   // Totals for the filtered set
   const filteredTotals = useMemo(() => {
@@ -58,19 +61,20 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
       taxable: acc.taxable + row.totalTaxable,
       supported: acc.supported + row.totalSupported,
       deductible: acc.deductible + row.totalDeductible,
+      withholding: acc.withholding + row.totalWithholding,
       total: acc.total + row.totalDocument
-    }), { taxable: 0, supported: 0, deductible: 0, total: 0 });
+    }), { taxable: 0, supported: 0, deductible: 0, withholding: 0, total: 0 });
   }, [filteredData]);
 
   // Function to export data to CSV (Excel compatible)
   const exportToExcel = () => {
     if (filteredData.length === 0) return;
 
-    // Header matching user requirement: Nº Ordem, Fornecedor, Data, Doc#, Total Documento, Total Tributável, Total Suportado, Total Dedutível e Notas
-    const headers = ["Nº Ordem", "Fornecedor", "NIF", "Data", "Doc#", "Total Documento", "Total Tributável", "Total Suportado", "Total Dedutível", "Notas"];
-    
+    const headers = ["Nº Ordem", "Tipo", "Fornecedor", "NIF", "Data", "Doc#", "Total Documento", "Total Tributável", "Total Suportado", "Total Dedutível", "Retenção", "Notas"];
+
     const rows = filteredData.map(row => [
       row.orderNumber,
+      `"${row.documentTypeCode}"`,
       `"${row.supplierName}"`,
       `"${row.nif}"`,
       row.date,
@@ -79,6 +83,7 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
       row.totalTaxable.toFixed(2).replace('.', ','),
       row.totalSupported.toFixed(2).replace('.', ','),
       row.totalDeductible.toFixed(2).replace('.', ','),
+      row.totalWithholding.toFixed(2).replace('.', ','),
       `"${(row.notes || "").replace(/\n/g, ' ')}"`
     ]);
 
@@ -103,7 +108,7 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
         {/* Preview Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={() => setShowPreview(false)}
               className="p-2 hover:bg-white rounded-xl text-slate-500 border border-transparent hover:border-slate-200 transition-all shadow-sm"
             >
@@ -115,14 +120,14 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => window.print()}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all shadow-sm"
             >
               <Printer size={18} />
               Imprimir
             </button>
-            <button 
+            <button
               onClick={exportToExcel}
               className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
             >
@@ -137,20 +142,20 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex-1 min-w-[280px] relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="Pesquisar por Doc# ou Fornecedor..." 
+              <input
+                type="text"
+                placeholder="Pesquisar por Doc# ou Fornecedor..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all text-slate-900"
               />
             </div>
-            
+
             <div className="flex items-center gap-2">
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none text-slate-900"
@@ -159,8 +164,8 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
               <span className="text-slate-400 font-bold">até</span>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none text-slate-900"
@@ -168,7 +173,7 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
               </div>
             </div>
 
-            <select 
+            <select
               value={filterSupplier}
               onChange={(e) => setFilterSupplier(e.target.value)}
               className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none text-slate-900"
@@ -180,7 +185,7 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
         </div>
 
         {/* Financial Summary */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-slate-900 p-6 rounded-3xl text-white shadow-xl shadow-slate-900/10 border border-slate-800">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Base Tributável</p>
             <p className="text-xl font-bold">{filteredTotals.taxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
@@ -196,6 +201,10 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
               <ArrowUpRight size={16} className="text-emerald-500" />
             </div>
           </div>
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+            <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Retenção</p>
+            <p className="text-xl font-bold text-amber-600">{filteredTotals.withholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
+          </div>
           <div className="bg-blue-600 p-6 rounded-3xl text-white shadow-xl shadow-blue-600/20">
             <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Total Consolidado</p>
             <p className="text-xl font-black">{filteredTotals.total.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
@@ -209,11 +218,12 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ord</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fornecedor</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Data</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Documento</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Tributável</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Dedutível</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Retenção</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total</th>
                 </tr>
               </thead>
@@ -222,6 +232,9 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
                   <tr key={row.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
                       <span className="text-xs font-bold text-slate-400 group-hover:text-blue-500 transition-colors">#{row.orderNumber}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-black font-mono">{row.documentTypeCode}</span>
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-sm font-bold text-slate-800">{row.supplierName}</p>
@@ -234,10 +247,10 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
                       <span className="px-2 py-1 bg-slate-100 rounded text-[10px] font-mono font-black text-slate-500">{row.documentNumber}</span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className="text-sm font-medium text-slate-600">{row.totalTaxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
+                      <span className="text-sm font-bold text-emerald-600">{row.totalDeductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className="text-sm font-bold text-emerald-600">{row.totalDeductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
+                      <span className="text-sm font-bold text-amber-600">{row.totalWithholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <span className="text-sm font-black text-slate-900">{row.totalDocument.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
@@ -246,7 +259,7 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
                 ))}
                 {filteredData.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-20 text-center">
+                    <td colSpan={8} className="px-6 py-20 text-center">
                       <div className="flex flex-col items-center justify-center text-slate-400">
                         <Filter size={64} className="mb-4 opacity-10" />
                         <p className="text-lg font-medium">Nenhum dado com os filtros aplicados</p>
@@ -271,12 +284,12 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
         </div>
         <h2 className="text-4xl font-black text-slate-800 mb-6 tracking-tight">Exportação e Relatórios</h2>
         <p className="text-slate-500 mb-12 leading-relaxed text-lg max-w-xl">
-          Gere um relatório detalhado de todas as facturas registadas. 
+          Gere um relatório detalhado de todas as facturas registadas.
           Poderá filtrar os dados antes da exportação para garantir a precisão da submissão.
         </p>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full">
-          <button 
+          <button
             onClick={() => setShowPreview(true)}
             className="group flex flex-col items-center justify-center gap-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black p-8 rounded-[2rem] transition-all border-2 border-transparent hover:border-slate-300"
           >
@@ -285,7 +298,7 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers }) => {
             </div>
             <span>Visualizar Dados</span>
           </button>
-          <button 
+          <button
             onClick={exportToExcel}
             className="group flex flex-col items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-black p-8 rounded-[2rem] transition-all shadow-2xl shadow-blue-600/30 active:scale-95"
           >
