@@ -5,6 +5,52 @@ export interface Supplier {
   nif: string;
   address: string;
   email: string;
+  inAngola: boolean;
+  ivaRegime: 'Geral' | 'Simplificado' | 'Exclusão';
+  provinceId?: string;
+  municipalityId?: string;
+  conformityDeclarationNumber?: string;
+  attachments: SupplierAttachment[];
+}
+
+export interface Province {
+  id: string;
+  name: string;
+}
+
+export interface Municipality {
+  id: string;
+  provinceId: string;
+  name: string;
+}
+
+export interface SupplierAttachment {
+  id: string;
+  supplierId: string;
+  title: string;
+  filePath: string;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  nif: string;
+  address: string;
+  email: string;
+  inAngola: boolean;
+  ivaRegime: 'Geral' | 'Simplificado' | 'Exclusão';
+  type: 'Normal' | 'Estado' | 'Instituição Financeira';
+  provinceId?: string;
+  municipalityId?: string;
+  conformityDeclarationNumber?: string;
+  attachments: ClientAttachment[];
+}
+
+export interface ClientAttachment {
+  id: string;
+  clientId: string;
+  title: string;
+  filePath: string;
 }
 
 export interface DocumentType {
@@ -75,7 +121,7 @@ export interface CCDocument {
   relatedDocumentId?: string;
 }
 
-export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'irt_withholding_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports';
+export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'irt_withholding_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities';
 
 declare global {
   interface Window {
@@ -101,6 +147,24 @@ declare global {
         addCCDocument: (doc: any) => Promise<any>;
         updateCCDocument: (doc: any) => Promise<any>;
         deleteCCDocument: (id: string) => Promise<any>;
+        getProvinces: () => Promise<Province[]>;
+        addProvince: (province: any) => Promise<any>;
+        updateProvince: (province: any) => Promise<any>;
+        deleteProvince: (id: string) => Promise<any>;
+        getMunicipalities: () => Promise<Municipality[]>;
+        addMunicipality: (municipality: any) => Promise<any>;
+        updateMunicipality: (municipality: any) => Promise<any>;
+        deleteMunicipality: (id: string) => Promise<any>;
+        getSupplierAttachments: (supplierId: string) => Promise<SupplierAttachment[]>;
+        addSupplierAttachment: (attachment: any) => Promise<any>;
+        deleteSupplierAttachment: (id: string) => Promise<any>;
+        getClients: () => Promise<Client[]>;
+        addClient: (client: any) => Promise<any>;
+        updateClient: (client: any) => Promise<any>;
+        deleteClient: (id: string) => Promise<any>;
+        getClientAttachments: (clientId: string) => Promise<ClientAttachment[]>;
+        addClientAttachment: (attachment: any) => Promise<any>;
+        deleteClientAttachment: (id: string) => Promise<any>;
       };
       fs: {
         saveFile: (fileName: string, buffer: ArrayBuffer) => Promise<string>;

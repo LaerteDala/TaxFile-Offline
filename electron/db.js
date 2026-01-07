@@ -102,9 +102,74 @@ export function initDb() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (related_document_id) REFERENCES cc_documents(id) ON DELETE SET NULL
         );
+
+        CREATE TABLE IF NOT EXISTS provinces (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS municipalities (
+            id TEXT PRIMARY KEY,
+            province_id TEXT,
+            name TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (province_id) REFERENCES provinces(id) ON DELETE CASCADE,
+            UNIQUE(province_id, name)
+        );
+
+        CREATE TABLE IF NOT EXISTS supplier_attachments (
+            id TEXT PRIMARY KEY,
+            supplier_id TEXT,
+            title TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS clients (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            nif TEXT,
+            address TEXT,
+            email TEXT,
+            in_angola INTEGER DEFAULT 1,
+            iva_regime TEXT DEFAULT 'Geral',
+            province_id TEXT,
+            municipality_id TEXT,
+            conformity_declaration_number TEXT,
+            type TEXT DEFAULT 'Normal',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS client_attachments (
+            id TEXT PRIMARY KEY,
+            client_id TEXT,
+            title TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+        );
     `);
 
     // Migrations: Add columns if they don't exist
+    const tableInfoSuppliers = db.prepare("PRAGMA table_info(suppliers)").all();
+    const hasInAngola = tableInfoSuppliers.some(col => col.name === 'in_angola');
+    const hasIvaRegime = tableInfoSuppliers.some(col => col.name === 'iva_regime');
+    const hasProvinceId = tableInfoSuppliers.some(col => col.name === 'province_id');
+    const hasMunicipalityId = tableInfoSuppliers.some(col => col.name === 'municipality_id');
+    const hasConformityNumber = tableInfoSuppliers.some(col => col.name === 'conformity_declaration_number');
+
+    if (!hasInAngola) db.exec("ALTER TABLE suppliers ADD COLUMN in_angola INTEGER DEFAULT 1;");
+    if (!hasIvaRegime) db.exec("ALTER TABLE suppliers ADD COLUMN iva_regime TEXT DEFAULT 'Geral';");
+    if (!hasProvinceId) db.exec("ALTER TABLE suppliers ADD COLUMN province_id TEXT;");
+    if (!hasMunicipalityId) db.exec("ALTER TABLE suppliers ADD COLUMN municipality_id TEXT;");
+    if (!hasConformityNumber) db.exec("ALTER TABLE suppliers ADD COLUMN conformity_declaration_number TEXT;");
+
+    const tableInfoClients = db.prepare("PRAGMA table_info(clients)").all();
+    const hasClientType = tableInfoClients.some(col => col.name === 'type');
+    if (!hasClientType) db.exec("ALTER TABLE clients ADD COLUMN type TEXT DEFAULT 'Normal';");
+
     const tableInfoInvoices = db.prepare("PRAGMA table_info(invoices)").all();
     const hasDocTypeId = tableInfoInvoices.some(col => col.name === 'document_type_id');
     const hasTotalWithholding = tableInfoInvoices.some(col => col.name === 'total_withholding');
@@ -162,14 +227,53 @@ export function initDb() {
 
 export const dbOps = {
     // Suppliers
-    getSuppliers: () => db.prepare('SELECT * FROM suppliers ORDER BY name').all(),
+    getSuppliers: () => {
+        const suppliers = db.prepare('SELECT * FROM suppliers ORDER BY name').all();
+        return suppliers.map(s => {
+            const attachments = db.prepare('SELECT * FROM supplier_attachments WHERE supplier_id = ?').all(s.id);
+            return {
+                ...s,
+                inAngola: !!s.in_angola,
+                ivaRegime: s.iva_regime,
+                provinceId: s.province_id,
+                municipalityId: s.municipality_id,
+                conformityDeclarationNumber: s.conformity_declaration_number,
+                attachments: attachments.map(a => ({
+                    id: a.id,
+                    supplierId: a.supplier_id,
+                    title: a.title,
+                    filePath: a.file_path
+                }))
+            };
+        });
+    },
     addSupplier: (supplier) => {
-        const stmt = db.prepare('INSERT INTO suppliers (id, name, nif, address, email) VALUES (?, ?, ?, ?, ?)');
-        return stmt.run(supplier.id, supplier.name, supplier.nif, supplier.address, supplier.email);
+        const stmt = db.prepare(`
+            INSERT INTO suppliers (
+                id, name, nif, address, email, in_angola, iva_regime, 
+                province_id, municipality_id, conformity_declaration_number
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        return stmt.run(
+            supplier.id, supplier.name, supplier.nif, supplier.address, supplier.email,
+            supplier.inAngola ? 1 : 0, supplier.ivaRegime,
+            supplier.provinceId, supplier.municipalityId, supplier.conformityDeclarationNumber
+        );
     },
     updateSupplier: (supplier) => {
-        const stmt = db.prepare('UPDATE suppliers SET name = ?, nif = ?, address = ?, email = ? WHERE id = ?');
-        return stmt.run(supplier.name, supplier.nif, supplier.address, supplier.email, supplier.id);
+        const stmt = db.prepare(`
+            UPDATE suppliers SET 
+                name = ?, nif = ?, address = ?, email = ?, in_angola = ?, 
+                iva_regime = ?, province_id = ?, municipality_id = ?, 
+                conformity_declaration_number = ? 
+            WHERE id = ?
+        `);
+        return stmt.run(
+            supplier.name, supplier.nif, supplier.address, supplier.email,
+            supplier.inAngola ? 1 : 0, supplier.ivaRegime,
+            supplier.provinceId, supplier.municipalityId, supplier.conformityDeclarationNumber,
+            supplier.id
+        );
     },
     deleteSupplier: (id) => db.prepare('DELETE FROM suppliers WHERE id = ?').run(id),
 
@@ -386,5 +490,113 @@ export const dbOps = {
             doc.attachmentPath, doc.hasAttachment ? 1 : 0, doc.relatedDocumentId, doc.id
         );
     },
-    deleteCCDocument: (id) => db.prepare('DELETE FROM cc_documents WHERE id = ?').run(id)
+    deleteCCDocument: (id) => db.prepare('DELETE FROM cc_documents WHERE id = ?').run(id),
+
+    // Provinces
+    getProvinces: () => db.prepare('SELECT * FROM provinces ORDER BY name').all(),
+    addProvince: (province) => {
+        const stmt = db.prepare('INSERT INTO provinces (id, name) VALUES (?, ?)');
+        return stmt.run(province.id, province.name);
+    },
+    updateProvince: (province) => {
+        const stmt = db.prepare('UPDATE provinces SET name = ? WHERE id = ?');
+        return stmt.run(province.name, province.id);
+    },
+    deleteProvince: (id) => db.prepare('DELETE FROM provinces WHERE id = ?').run(id),
+
+    // Municipalities
+    getMunicipalities: () => db.prepare('SELECT * FROM municipalities ORDER BY name').all(),
+    addMunicipality: (municipality) => {
+        const stmt = db.prepare('INSERT INTO municipalities (id, province_id, name) VALUES (?, ?, ?)');
+        return stmt.run(municipality.id, municipality.province_id, municipality.name);
+    },
+    updateMunicipality: (municipality) => {
+        const stmt = db.prepare('UPDATE municipalities SET province_id = ?, name = ? WHERE id = ?');
+        return stmt.run(municipality.province_id, municipality.name, municipality.id);
+    },
+    deleteMunicipality: (id) => db.prepare('DELETE FROM municipalities WHERE id = ?').run(id),
+
+    // Supplier Attachments
+    getSupplierAttachments: (supplierId) => {
+        return db.prepare('SELECT * FROM supplier_attachments WHERE supplier_id = ?').all(supplierId).map(a => ({
+            id: a.id,
+            supplierId: a.supplier_id,
+            title: a.title,
+            filePath: a.file_path
+        }));
+    },
+    addSupplierAttachment: (attachment) => {
+        const stmt = db.prepare('INSERT INTO supplier_attachments (id, supplier_id, title, file_path) VALUES (?, ?, ?, ?)');
+        return stmt.run(attachment.id, attachment.supplierId, attachment.title, attachment.filePath);
+    },
+    deleteSupplierAttachment: (id) => db.prepare('DELETE FROM supplier_attachments WHERE id = ?').run(id),
+
+    // Clients
+    getClients: () => {
+        const clients = db.prepare('SELECT * FROM clients ORDER BY name').all();
+        return clients.map(c => {
+            const attachments = db.prepare('SELECT * FROM client_attachments WHERE client_id = ?').all(c.id);
+            return {
+                ...c,
+                inAngola: !!c.in_angola,
+                ivaRegime: c.iva_regime,
+                provinceId: c.province_id,
+                municipalityId: c.municipality_id,
+                conformityDeclarationNumber: c.conformity_declaration_number,
+                type: c.type || 'Normal',
+                attachments: attachments.map(a => ({
+                    id: a.id,
+                    clientId: a.client_id,
+                    title: a.title,
+                    filePath: a.file_path
+                }))
+            };
+        });
+    },
+    addClient: (client) => {
+        const stmt = db.prepare(`
+            INSERT INTO clients (
+                id, name, nif, address, email, in_angola, iva_regime, 
+                province_id, municipality_id, conformity_declaration_number, type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        return stmt.run(
+            client.id, client.name, client.nif, client.address, client.email,
+            client.inAngola ? 1 : 0, client.ivaRegime,
+            client.provinceId, client.municipalityId, client.conformityDeclarationNumber,
+            client.type || 'Normal'
+        );
+    },
+    updateClient: (client) => {
+        const stmt = db.prepare(`
+            UPDATE clients SET 
+                name = ?, nif = ?, address = ?, email = ?, in_angola = ?, 
+                iva_regime = ?, province_id = ?, municipality_id = ?, 
+                conformity_declaration_number = ?, type = ? 
+            WHERE id = ?
+        `);
+        return stmt.run(
+            client.name, client.nif, client.address, client.email,
+            client.inAngola ? 1 : 0, client.ivaRegime,
+            client.provinceId, client.municipalityId, client.conformityDeclarationNumber,
+            client.type || 'Normal',
+            client.id
+        );
+    },
+    deleteClient: (id) => db.prepare('DELETE FROM clients WHERE id = ?').run(id),
+
+    // Client Attachments
+    getClientAttachments: (clientId) => {
+        return db.prepare('SELECT * FROM client_attachments WHERE client_id = ?').all(clientId).map(a => ({
+            id: a.id,
+            clientId: a.client_id,
+            title: a.title,
+            filePath: a.file_path
+        }));
+    },
+    addClientAttachment: (attachment) => {
+        const stmt = db.prepare('INSERT INTO client_attachments (id, client_id, title, file_path) VALUES (?, ?, ?, ?)');
+        return stmt.run(attachment.id, attachment.clientId, attachment.title, attachment.filePath);
+    },
+    deleteClientAttachment: (id) => db.prepare('DELETE FROM client_attachments WHERE id = ?').run(id)
 };

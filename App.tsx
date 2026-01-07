@@ -30,11 +30,14 @@ import {
   Wallet,
   History,
   ArrowLeftRight,
-  PieChart
+  PieChart,
+  MapPin,
+  Building2
 } from 'lucide-react';
-import { View, Supplier, Invoice, DocumentType, WithholdingType, CCDocument } from './types';
+import { View, Supplier, Client, Invoice, DocumentType, WithholdingType, CCDocument } from './types';
 import Dashboard from './components/Dashboard';
 import Suppliers from './components/Suppliers';
+import Clients from './components/Clients';
 import Invoices from './components/Invoices';
 import Reports from './components/Reports';
 import Inquiry from './components/Inquiry';
@@ -49,6 +52,8 @@ import IIWithholdingMap from './components/II_WithholdingMap';
 import IIReports from './components/II_Reports';
 import IPWithholdingMap from './components/IP_WithholdingMap';
 import IPReports from './components/IP_Reports';
+import Provinces from './components/Provinces';
+import Municipalities from './components/Municipalities';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -58,6 +63,7 @@ const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [withholdingTypes, setWithholdingTypes] = useState<WithholdingType[]>([]);
@@ -74,6 +80,9 @@ const App: React.FC = () => {
     try {
       const sups = await window.electron.db.getSuppliers();
       setSuppliers(sups || []);
+
+      const cls = await window.electron.db.getClients();
+      setClients(cls || []);
 
       const docs = await window.electron.db.getDocumentTypes();
       setDocumentTypes(docs || []);
@@ -231,7 +240,16 @@ const App: React.FC = () => {
     },
     { name: 'IV. Motorizados', icon: Car, view: 'tax_ivm' as View },
     { name: 'IA. Capitais', icon: Banknote, view: 'tax_iac' as View },
-    { name: 'Definições', icon: SettingsIcon, view: 'settings' as View },
+    {
+      name: 'Definições',
+      icon: SettingsIcon,
+      id: 'settings_menu',
+      subItems: [
+        { name: 'Geral', icon: SettingsIcon, view: 'settings' as View },
+        { name: 'Províncias', icon: MapPin, view: 'provinces' as View },
+        { name: 'Municípios', icon: Building2, view: 'municipalities' as View },
+      ]
+    },
   ];
 
   if (!session && !isLoading) {
@@ -362,6 +380,7 @@ const App: React.FC = () => {
               />
             )}
             {currentView === 'suppliers' && <Suppliers suppliers={suppliers} setSuppliers={setSuppliers} setInvoices={setInvoices} />}
+            {currentView === 'clients' && <Clients clients={clients} setClients={setClients} />}
             {currentView === 'invoices' && (
               <Invoices
                 invoices={invoices}
@@ -431,6 +450,8 @@ const App: React.FC = () => {
               />
             )}
             {currentView === 'ip_reports' && <IPReports invoices={invoices} withholdingTypes={withholdingTypes} />}
+            {currentView === 'provinces' && <Provinces />}
+            {currentView === 'municipalities' && <Municipalities />}
             {currentView === 'settings' && (
               <Settings
                 documentTypes={documentTypes}

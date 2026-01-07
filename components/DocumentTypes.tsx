@@ -66,6 +66,14 @@ const DocumentTypes: React.FC<DocumentTypesProps> = ({ documentTypes, setDocumen
         setIsSubmitting(true);
 
         try {
+            // Check for duplicate code
+            const isDuplicate = documentTypes.some(t => t.code === formData.code && t.id !== selectedId);
+            if (isDuplicate) {
+                setError(`O código "${formData.code}" já está em uso por outro tipo de documento.`);
+                setIsSubmitting(false);
+                return;
+            }
+
             if (currentSubView === 'create') {
                 const newType = {
                     ...formData,

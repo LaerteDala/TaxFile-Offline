@@ -62,6 +62,29 @@ ipcMain.handle('db:addCCDocument', async (_, doc) => dbOps.addCCDocument(doc));
 ipcMain.handle('db:updateCCDocument', async (_, doc) => dbOps.updateCCDocument(doc));
 ipcMain.handle('db:deleteCCDocument', async (_, id) => dbOps.deleteCCDocument(id));
 
+ipcMain.handle('db:getProvinces', async () => dbOps.getProvinces());
+ipcMain.handle('db:addProvince', async (_, province) => dbOps.addProvince(province));
+ipcMain.handle('db:updateProvince', async (_, province) => dbOps.updateProvince(province));
+ipcMain.handle('db:deleteProvince', async (_, id) => dbOps.deleteProvince(id));
+
+ipcMain.handle('db:getMunicipalities', async () => dbOps.getMunicipalities());
+ipcMain.handle('db:addMunicipality', async (_, municipality) => dbOps.addMunicipality(municipality));
+ipcMain.handle('db:updateMunicipality', async (_, municipality) => dbOps.updateMunicipality(municipality));
+ipcMain.handle('db:deleteMunicipality', async (_, id) => dbOps.deleteMunicipality(id));
+
+ipcMain.handle('db:getSupplierAttachments', async (_, supplierId) => dbOps.getSupplierAttachments(supplierId));
+ipcMain.handle('db:addSupplierAttachment', async (_, attachment) => dbOps.addSupplierAttachment(attachment));
+ipcMain.handle('db:deleteSupplierAttachment', async (_, id) => dbOps.deleteSupplierAttachment(id));
+
+ipcMain.handle('db:getClients', async () => dbOps.getClients());
+ipcMain.handle('db:addClient', async (_, client) => dbOps.addClient(client));
+ipcMain.handle('db:updateClient', async (_, client) => dbOps.updateClient(client));
+ipcMain.handle('db:deleteClient', async (_, id) => dbOps.deleteClient(id));
+
+ipcMain.handle('db:getClientAttachments', async (_, clientId) => dbOps.getClientAttachments(clientId));
+ipcMain.handle('db:addClientAttachment', async (_, attachment) => dbOps.addClientAttachment(attachment));
+ipcMain.handle('db:deleteClientAttachment', async (_, id) => dbOps.deleteClientAttachment(id));
+
 
 
 ipcMain.handle('auth:login', async (_, { email, password }) => dbOps.login(email, password));

@@ -3,10 +3,14 @@ import React, { useState } from 'react';
 import {
     FileText,
     ShieldCheck,
-    Settings as SettingsIcon
+    Settings as SettingsIcon,
+    MapPin,
+    Building2
 } from 'lucide-react';
 import DocumentTypes from './DocumentTypes';
 import WithholdingTypes from './WithholdingTypes';
+import Provinces from './Provinces';
+import Municipalities from './Municipalities';
 import { DocumentType, WithholdingType } from '../types';
 
 interface SettingsProps {
@@ -22,7 +26,7 @@ const Settings: React.FC<SettingsProps> = ({
     withholdingTypes,
     setWithholdingTypes
 }) => {
-    const [activeTab, setActiveTab] = useState<'documents' | 'withholding'>('documents');
+    const [activeTab, setActiveTab] = useState<'documents' | 'withholding' | 'provinces' | 'municipalities'>('documents');
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -42,8 +46,8 @@ const Settings: React.FC<SettingsProps> = ({
                 <button
                     onClick={() => setActiveTab('documents')}
                     className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-300 ${activeTab === 'documents'
-                            ? 'bg-white text-blue-600 shadow-md shadow-slate-200'
-                            : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                        ? 'bg-white text-blue-600 shadow-md shadow-slate-200'
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                         }`}
                 >
                     <FileText size={16} />
@@ -52,12 +56,32 @@ const Settings: React.FC<SettingsProps> = ({
                 <button
                     onClick={() => setActiveTab('withholding')}
                     className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-300 ${activeTab === 'withholding'
-                            ? 'bg-white text-blue-600 shadow-md shadow-slate-200'
-                            : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                        ? 'bg-white text-blue-600 shadow-md shadow-slate-200'
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                         }`}
                 >
                     <ShieldCheck size={16} />
                     Retenção na Fonte
+                </button>
+                <button
+                    onClick={() => setActiveTab('provinces')}
+                    className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-300 ${activeTab === 'provinces'
+                        ? 'bg-white text-blue-600 shadow-md shadow-slate-200'
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                        }`}
+                >
+                    <MapPin size={16} />
+                    Províncias
+                </button>
+                <button
+                    onClick={() => setActiveTab('municipalities')}
+                    className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-300 ${activeTab === 'municipalities'
+                        ? 'bg-white text-blue-600 shadow-md shadow-slate-200'
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                        }`}
+                >
+                    <Building2 size={16} />
+                    Municípios
                 </button>
             </div>
 
@@ -75,6 +99,8 @@ const Settings: React.FC<SettingsProps> = ({
                             setWithholdingTypes={setWithholdingTypes}
                         />
                     )}
+                    {activeTab === 'provinces' && <Provinces />}
+                    {activeTab === 'municipalities' && <Municipalities />}
                 </div>
             </div>
         </div>

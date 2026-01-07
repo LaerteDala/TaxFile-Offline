@@ -46,6 +46,12 @@ const WithholdingTypes: React.FC<WithholdingTypesProps> = ({ withholdingTypes, s
         if (!name || rate < 0) return;
         setIsLoading(true);
         try {
+            const isDuplicate = withholdingTypes.some(wt => wt.name.toLowerCase() === name.toLowerCase());
+            if (isDuplicate) {
+                alert(`O imposto "${name}" já existe.`);
+                setIsLoading(false);
+                return;
+            }
             const newWT = { id: crypto.randomUUID(), name, rate };
             await window.electron.db.addWithholdingType(newWT);
             setWithholdingTypes(prev => [...prev, newWT]);
@@ -61,6 +67,12 @@ const WithholdingTypes: React.FC<WithholdingTypesProps> = ({ withholdingTypes, s
         if (!editingId || !name || rate < 0) return;
         setIsLoading(true);
         try {
+            const isDuplicate = withholdingTypes.some(wt => wt.name.toLowerCase() === name.toLowerCase() && wt.id !== editingId);
+            if (isDuplicate) {
+                alert(`O imposto "${name}" já existe.`);
+                setIsLoading(false);
+                return;
+            }
             const updatedWT = { id: editingId, name, rate };
             await window.electron.db.updateWithholdingType(updatedWT);
             setWithholdingTypes(prev => prev.map(wt => wt.id === editingId ? updatedWT : wt));
