@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { 
-  Search, 
-  Calendar, 
+import {
+  Search,
+  Calendar,
   Filter,
   ArrowUpRight,
   FileCheck2,
@@ -25,7 +25,6 @@ import {
   FolderArchive
 } from 'lucide-react';
 import { Invoice, Supplier, TaxLine } from '../types';
-import { supabase } from '../lib/supabase';
 import JSZip from 'jszip';
 
 interface InquiryProps {
@@ -44,11 +43,11 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
   const [isSaving, setIsSaving] = useState(false);
   const [isZipping, setIsZipping] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // View states
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  
+
   // Detail/Edit Form State
   const [editDocNumber, setEditDocNumber] = useState('');
   const [editNotes, setEditNotes] = useState('');
@@ -61,7 +60,7 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
       const term = searchTerm.toLowerCase();
       const docNum = (inv.documentNumber || "").toLowerCase();
       const supName = (supplier?.name || "").toLowerCase();
-      
+
       const matchesSearch = docNum.includes(term) || supName.includes(term);
       const matchesDate = (!startDate || inv.date >= startDate) && (!endDate || inv.date <= endDate);
       const matchesSupplier = !filterSupplier || inv.supplierId === filterSupplier;
@@ -100,23 +99,9 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
     setDeletingId(idToRemove);
 
     try {
-      // 1. Remover anexo se existir
-      if (invoice.pdfPath) {
-        await supabase.storage.from('invoices').remove([invoice.pdfPath]);
-      }
-      
-      // 2. Remover da base de dados
-      const { error } = await supabase
-        .from('invoices')
-        .delete()
-        .eq('id', idToRemove);
-
-      if (error) throw error;
-
-      // 3. Actualizar estado local
+      await window.electron.db.deleteInvoice(idToRemove);
       setInvoices(prev => prev.filter(i => i.id !== idToRemove));
-      
-      // Se estivermos na vista detalhada desta factura, voltar para a lista
+
       if (selectedInvoiceId === idToRemove) {
         setSelectedInvoiceId(null);
       }
@@ -127,11 +112,12 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
     }
   };
 
+
   const exportToExcel = () => {
     if (filteredData.length === 0) return;
 
     const headers = ["Nº Ordem", "Fornecedor", "NIF", "Data", "Doc#", "Total Documento", "Total Tributável", "Total Suportado", "Total Dedutível", "Notas"];
-    
+
     const rows = filteredData.map(row => {
       const supplier = suppliers.find(s => s.id === row.supplierId);
       return [
@@ -165,7 +151,7 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
 
   const exportAttachmentsZip = async () => {
     const invoicesWithPdf = filteredData.filter(i => i.hasPdf && i.pdfPath);
-    
+
     if (invoicesWithPdf.length === 0) {
       alert("Nenhuma das facturas filtradas possui anexo PDF para exportar.");
       return;
@@ -180,12 +166,10 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
         const folderName = supplier?.name.replace(/[/\\?%*:|"<>]/g, '_') || "Sem Fornecedor";
         const fileName = `Factura_${inv.documentNumber.replace(/[/\\?%*:|"<>]/g, '_')}.pdf`;
 
-        // Download do ficheiro do Supabase
-        const { data, error } = await supabase.storage.from('invoices').download(inv.pdfPath!);
-        
-        if (!error && data) {
-          // Adicionar à estrutura de pastas do ZIP
-          zip.folder(folderName)?.file(fileName, data);
+        // Read local file
+        const buffer = await window.electron.fs.readFile(inv.pdfPath!);
+        if (buffer) {
+          zip.folder(folderName)?.file(fileName, buffer);
         }
       }
 
@@ -200,27 +184,25 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
       URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error("Erro ao gerar ZIP:", err);
-      alert("Ocorreu um erro ao processar os anexos. Verifique a sua ligação.");
+      alert("Ocorreu um erro ao processar os anexos.");
     } finally {
       setIsZipping(false);
     }
   };
 
+
   const handleDownload = async (invoice: Invoice) => {
     if (!invoice.hasPdf || !invoice.pdfPath) return;
     setIsDownloading(invoice.id);
     try {
-      const { data, error } = await supabase.storage.from('invoices').download(invoice.pdfPath);
-      if (error) throw error;
-      const url = URL.createObjectURL(data);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Factura_${(invoice.documentNumber || "Doc")}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch (err: any) { alert(`Erro ao descarregar PDF: ${err.message}`); }
-    finally { setIsDownloading(null); }
+      await window.electron.fs.openFile(invoice.pdfPath);
+    } catch (err: any) {
+      alert(`Erro ao abrir PDF: ${err.message}`);
+    } finally {
+      setIsDownloading(null);
+    }
   };
+
 
   const handleOpenDetails = (inv: Invoice) => {
     setSelectedInvoiceId(inv.id);
@@ -234,29 +216,27 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
   const handleSave = async () => {
     if (!selectedInvoiceId || !selectedInvoice) return;
     setIsSaving(true);
-    
+
     try {
       let storagePath = selectedInvoice.pdfPath || null;
 
       if (newFile) {
-        if (selectedInvoice.pdfPath) {
-          await supabase.storage.from('invoices').remove([selectedInvoice.pdfPath]);
-        }
+        const buffer = await newFile.arrayBuffer();
         const fileExt = newFile.name.split('.').pop();
-        storagePath = `inv_${editDocNumber}_${Date.now()}.${fileExt}`;
-        const { error: upErr } = await supabase.storage.from('invoices').upload(storagePath, newFile);
-        if (upErr) throw upErr;
+        const fileName = `inv_${editDocNumber}_${Date.now()}.${fileExt}`;
+        storagePath = await window.electron.fs.saveFile(fileName, buffer);
       }
 
-      const { error } = await supabase.from('invoices').update({
-        document_number: editDocNumber,
+      const updatedData = {
+        ...selectedInvoice,
+        documentNumber: editDocNumber,
         notes: editNotes,
         date: editDate,
-        pdf_path: storagePath,
-        has_pdf: !!storagePath
-      }).eq('id', selectedInvoiceId);
+        pdfPath: storagePath,
+        hasPdf: !!storagePath
+      };
 
-      if (error) throw error;
+      await window.electron.db.updateInvoice(updatedData, selectedInvoice.lines);
 
       setInvoices(prev => prev.map(inv => {
         if (inv.id === selectedInvoiceId) {
@@ -272,6 +252,7 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
     }
   };
 
+
   if (selectedInvoice) {
     return (
       <div className="space-y-6 animate-in slide-in-from-right-8 duration-500 pb-12">
@@ -286,13 +267,13 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
               <p className="text-sm text-slate-500 font-medium">Visualização detalhada do lançamento</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {!isEditing ? (
               <>
                 <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-all"><Edit3 size={18} /> Editar</button>
-                <button 
-                  onClick={() => removeInvoice(selectedInvoice)} 
+                <button
+                  onClick={() => removeInvoice(selectedInvoice)}
                   disabled={deletingId === selectedInvoice.id}
                   className="flex items-center gap-2 px-6 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-bold text-sm transition-all border border-red-200 disabled:opacity-50"
                 >
@@ -368,12 +349,12 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Anexo e Documentação</h3>
               {isEditing ? (
                 <div className="space-y-4">
-                   <input type="file" accept="application/pdf" ref={fileInputRef} onChange={(e) => e.target.files && setNewFile(e.target.files[0])} className="hidden" />
-                   <button type="button" onClick={() => fileInputRef.current?.click()} className={`w-full h-14 flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed transition-all font-bold text-sm ${newFile ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-blue-100 text-slate-400'}`}>
-                      {newFile ? <FileCheck2 size={20} /> : <Upload size={20} />}
-                      <span className="truncate">{newFile ? newFile.name : (selectedInvoice.hasPdf ? 'Substituir PDF Atual' : 'Anexar PDF')}</span>
-                   </button>
-                   {selectedInvoice.hasPdf && !newFile && <p className="text-[10px] font-bold text-slate-400">Pode carregar um novo ficheiro para substituir o actual.</p>}
+                  <input type="file" accept="application/pdf" ref={fileInputRef} onChange={(e) => e.target.files && setNewFile(e.target.files[0])} className="hidden" />
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className={`w-full h-14 flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed transition-all font-bold text-sm ${newFile ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-blue-100 text-slate-400'}`}>
+                    {newFile ? <FileCheck2 size={20} /> : <Upload size={20} />}
+                    <span className="truncate">{newFile ? newFile.name : (selectedInvoice.hasPdf ? 'Substituir PDF Atual' : 'Anexar PDF')}</span>
+                  </button>
+                  {selectedInvoice.hasPdf && !newFile && <p className="text-[10px] font-bold text-slate-400">Pode carregar um novo ficheiro para substituir o actual.</p>}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -402,7 +383,7 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex-1 min-w-[250px] relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
+              <input
                 type="text" placeholder="Pesquisar por Fornecedor ou Documento..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm text-slate-900 font-medium"
               />
@@ -418,30 +399,30 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
             </select>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3 w-full xl:w-auto">
-           <button 
-            onClick={() => window.print()} 
+          <button
+            onClick={() => window.print()}
             className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-           >
-             <Printer size={18} />
-             Imprimir
-           </button>
-           <button 
+          >
+            <Printer size={18} />
+            Imprimir
+          </button>
+          <button
             onClick={exportToExcel}
             className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-           >
-             <FileSpreadsheet size={18} className="text-emerald-600" />
-             Exportar Excel
-           </button>
-           <button 
+          >
+            <FileSpreadsheet size={18} className="text-emerald-600" />
+            Exportar Excel
+          </button>
+          <button
             onClick={exportAttachmentsZip}
             disabled={isZipping}
             className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm transition-all shadow-xl shadow-emerald-600/20 active:scale-95 disabled:opacity-50"
-           >
-             {isZipping ? <Loader2 className="animate-spin" size={18} /> : <FolderArchive size={18} />}
-             {isZipping ? 'A Gerar ZIP...' : 'Exportar Anexos (ZIP)'}
-           </button>
+          >
+            {isZipping ? <Loader2 className="animate-spin" size={18} /> : <FolderArchive size={18} />}
+            {isZipping ? 'A Gerar ZIP...' : 'Exportar Anexos (ZIP)'}
+          </button>
         </div>
       </div>
 
@@ -471,16 +452,16 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers }) =
                     <td className="px-6 py-4 text-right"><span className="text-sm font-black text-emerald-600">{row.totalDeductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span></td>
                     <td className="px-6 py-4 text-right font-black text-slate-900">{row.totalDocument.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
                     <td className="px-6 py-4 text-right">
-                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <button onClick={() => handleOpenDetails(row)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm active:scale-95"><Eye size={18} /></button>
-                         <button 
-                          onClick={() => removeInvoice(row)} 
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleOpenDetails(row)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm active:scale-95"><Eye size={18} /></button>
+                        <button
+                          onClick={() => removeInvoice(row)}
                           disabled={deletingId === row.id}
                           className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50"
-                         >
-                           {deletingId === row.id ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
-                         </button>
-                       </div>
+                        >
+                          {deletingId === row.id ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

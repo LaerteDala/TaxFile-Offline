@@ -6,7 +6,7 @@
   "main": "electron/main.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/LaerteDala/TaxFile-Electron.git"
+    "url": "https://github.com/LaerteDala/TaxFile-Offline.git"
   },
   "scripts": {
     "dev": "vite",
@@ -14,10 +14,11 @@
     "preview": "vite preview",
     "electron": "wait-on tcp:3000 && electron .",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"npm run electron\"",
-    "electron:build": "vite build && electron-builder"
+    "electron:build": "vite build && electron-builder",
+    "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
   "dependencies": {
-    "@supabase/supabase-js": "2",
+    "better-sqlite3": "^12.5.0",
     "electron-updater": "^6.6.2",
     "jszip": "3.10.1",
     "lucide-react": "^0.562.0",
@@ -26,12 +27,14 @@
     "recharts": "^3.6.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^33.4.11",
     "electron-builder": "^26.0.12",
+    "electron-rebuild": "^3.2.9",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
     "wait-on": "^9.0.3"
@@ -44,7 +47,7 @@
       {
         "provider": "github",
         "owner": "LaerteDala",
-        "repo": "TaxFile-Electron"
+        "repo": "TaxFile-Offline"
       }
     ],
     "directories": {

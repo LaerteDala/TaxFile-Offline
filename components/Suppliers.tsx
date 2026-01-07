@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  AlertCircle, 
-  ChevronLeft, 
-  Save, 
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  AlertCircle,
+  ChevronLeft,
+  Save,
   Loader2,
   Building2,
   Mail,
@@ -15,7 +15,6 @@ import {
   Fingerprint
 } from 'lucide-react';
 import { Supplier, Invoice } from '../types';
-import { supabase } from '../lib/supabase';
 
 interface SuppliersProps {
   suppliers: Supplier[];
@@ -31,7 +30,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ suppliers, setSuppliers, setInvoi
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Form State
   const [formData, setFormData] = useState<Partial<Supplier>>({
     name: '',
@@ -72,28 +71,19 @@ const Suppliers: React.FC<SuppliersProps> = ({ suppliers, setSuppliers, setInvoi
 
     try {
       if (currentSubView === 'create') {
-        const { data, error: supError } = await supabase
-          .from('suppliers')
-          .insert([formData])
-          .select();
-
-        if (supError) {
-          if (supError.code === '23505') throw new Error('Este NIF já está registado para outro fornecedor.');
-          throw supError;
-        }
-        setSuppliers([...suppliers, data[0]]);
+        const newSupplier = {
+          ...formData,
+          id: crypto.randomUUID()
+        };
+        await window.electron.db.addSupplier(newSupplier);
+        setSuppliers([...suppliers, newSupplier as Supplier]);
       } else if (currentSubView === 'edit' && selectedId) {
-        const { data, error: supError } = await supabase
-          .from('suppliers')
-          .update(formData)
-          .eq('id', selectedId)
-          .select();
-
-        if (supError) {
-          if (supError.code === '23505') throw new Error('Este NIF já está registado para outro fornecedor.');
-          throw supError;
-        }
-        setSuppliers(suppliers.map(s => s.id === selectedId ? data[0] : s));
+        const updatedSupplier = {
+          ...formData,
+          id: selectedId
+        };
+        await window.electron.db.updateSupplier(updatedSupplier);
+        setSuppliers(suppliers.map(s => s.id === selectedId ? updatedSupplier as Supplier : s));
       }
 
       setCurrentSubView('list');
@@ -112,35 +102,30 @@ const Suppliers: React.FC<SuppliersProps> = ({ suppliers, setSuppliers, setInvoi
     setError(null);
 
     try {
-      // O Supabase irá remover as facturas via CASCADE configurado no banco
-      const { error: supError } = await supabase
-        .from('suppliers')
-        .delete()
-        .eq('id', id);
-
-      if (supError) throw supError;
+      await window.electron.db.deleteSupplier(id);
 
       // 1. Remover do estado local de fornecedores
       setSuppliers(prev => prev.filter(s => s.id !== id));
-      
+
       // 2. Remover do estado local de facturas (sincronizar UI)
       setInvoices(prev => prev.filter(inv => inv.supplierId !== id));
-      
+
       console.log('Fornecedor removido com sucesso.');
     } catch (err: any) {
       console.error('Erro ao eliminar:', err);
-      alert(`Erro ao remover fornecedor: ${err.message || 'Verifique sua conexão ou permissões.'}`);
+      alert(`Erro ao remover fornecedor: ${err.message || 'Erro ao processar a solicitação.'}`);
     } finally {
       setDeletingId(null);
     }
   };
+
 
   // Renderização da Vista de Formulário (Criar ou Editar)
   if (currentSubView === 'create' || currentSubView === 'edit') {
     return (
       <div className="animate-in slide-in-from-right-8 duration-500 max-w-4xl mx-auto pb-12">
         <div className="flex items-center justify-between mb-8">
-          <button 
+          <button
             onClick={handleBack}
             className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-semibold transition-colors group"
           >
@@ -171,12 +156,12 @@ const Suppliers: React.FC<SuppliersProps> = ({ suppliers, setSuppliers, setInvoi
                     <Building2 size={12} className="text-blue-600" />
                     Nome da Empresa
                   </label>
-                  <input 
-                    required 
-                    type="text" 
+                  <input
+                    required
+                    type="text"
                     placeholder="Ex: Consultoria Geral, Lda"
-                    value={formData.name} 
-                    onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
                   />
                 </div>
@@ -186,12 +171,12 @@ const Suppliers: React.FC<SuppliersProps> = ({ suppliers, setSuppliers, setInvoi
                     <Fingerprint size={12} className="text-blue-600" />
                     NIF (Número de Identificação Fiscal)
                   </label>
-                  <input 
-                    required 
-                    type="text" 
+                  <input
+                    required
+                    type="text"
                     placeholder="5412345678"
-                    value={formData.nif} 
-                    onChange={(e) => setFormData({...formData, nif: e.target.value})} 
+                    value={formData.nif}
+                    onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
                     className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
                   />
                 </div>
@@ -201,11 +186,11 @@ const Suppliers: React.FC<SuppliersProps> = ({ suppliers, setSuppliers, setInvoi
                     <Mail size={12} className="text-blue-600" />
                     Endereço de Email
                   </label>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     placeholder="contacto@empresa.ao"
-                    value={formData.email} 
-                    onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
                   />
                 </div>
@@ -215,28 +200,28 @@ const Suppliers: React.FC<SuppliersProps> = ({ suppliers, setSuppliers, setInvoi
                     <MapPin size={12} className="text-blue-600" />
                     Morada Completa
                   </label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Rua Direita, Luanda"
-                    value={formData.address} 
-                    onChange={(e) => setFormData({...formData, address: e.target.value})} 
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
                   />
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-slate-50 p-8 border-t border-slate-200 flex justify-end gap-4">
-              <button 
-                type="button" 
-                onClick={handleBack} 
+              <button
+                type="button"
+                onClick={handleBack}
                 className="px-8 py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-100 transition-all active:scale-95"
               >
                 Descartar
               </button>
-              <button 
-                type="submit" 
-                disabled={isSubmitting} 
+              <button
+                type="submit"
+                disabled={isSubmitting}
                 className="px-12 py-4 bg-blue-600 text-white font-black rounded-2xl flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
               >
                 {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <><Save size={20} /> {currentSubView === 'create' ? 'Criar Fornecedor' : 'Salvar Alterações'}</>}
@@ -254,15 +239,15 @@ const Suppliers: React.FC<SuppliersProps> = ({ suppliers, setSuppliers, setInvoi
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:w-96">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Pesquisar por Nome ou NIF..." 
+          <input
+            type="text"
+            placeholder="Pesquisar por Nome ou NIF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm font-medium"
           />
         </div>
-        <button 
+        <button
           onClick={() => setCurrentSubView('create')}
           className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-8 py-3.5 rounded-2xl font-black transition-all shadow-xl shadow-slate-900/10 active:scale-95"
         >
@@ -306,7 +291,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ suppliers, setSuppliers, setInvoi
                   </td>
                   <td className="px-8 py-5 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
+                      <button
                         onClick={() => handleEdit(supplier)}
                         disabled={deletingId === supplier.id}
                         className="p-2.5 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50"
@@ -314,7 +299,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ suppliers, setSuppliers, setInvoi
                       >
                         <Edit2 size={18} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => removeSupplier(supplier.id)}
                         disabled={deletingId === supplier.id}
                         className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50"

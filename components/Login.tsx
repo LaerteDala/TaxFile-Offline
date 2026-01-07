@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { LogIn, Loader2, AlertCircle, FileText, Lock, Mail } from 'lucide-react';
 
 const Login: React.FC = () => {
@@ -14,16 +13,20 @@ const Login: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (authError) {
-      setError('Credenciais inválidas. Verifique o seu email e palavra-passe.');
+    try {
+      const user = await window.electron.auth.login(email, password);
+      if (user) {
+        window.dispatchEvent(new CustomEvent('app:login', { detail: user }));
+      } else {
+        setError('Credenciais inválidas. Verifique o seu email e palavra-passe.');
+      }
+    } catch (err) {
+      setError('Erro ao tentar entrar no sistema.');
+    } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="h-screen w-full flex items-center justify-center bg-slate-900 p-4 relative overflow-hidden">
@@ -101,7 +104,7 @@ const Login: React.FC = () => {
             </p>
           </div>
         </div>
-        
+
         <p className="text-center text-slate-500 text-xs mt-8 font-medium">
           © {new Date().getFullYear()} TaxFile ERP. Todos os direitos reservados.
         </p>

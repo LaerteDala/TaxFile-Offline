@@ -1,7 +1,8 @@
 import electron from 'electron';
-const { app, BrowserWindow } = electron;
+const { app, BrowserWindow, ipcMain } = electron;
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { initDb, dbOps } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,12 +20,8 @@ function createWindow() {
         icon: path.join(__dirname, isDev ? '../public/icon.png' : '../dist/icon.png')
     });
 
-
-
     if (isDev) {
         win.loadURL('http://localhost:3000');
-        // Open the DevTools.
-        // win.webContents.openDevTools();
     } else {
         win.loadFile(path.join(__dirname, '../dist/index.html'));
     }
@@ -33,14 +30,33 @@ function createWindow() {
 import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 
-// Configurar autoUpdater
 autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
 
+// IPC Handlers
+ipcMain.handle('db:getSuppliers', async () => dbOps.getSuppliers());
+ipcMain.handle('db:addSupplier', async (_, supplier) => dbOps.addSupplier(supplier));
+ipcMain.handle('db:updateSupplier', async (_, supplier) => dbOps.updateSupplier(supplier));
+ipcMain.handle('db:deleteSupplier', async (_, id) => dbOps.deleteSupplier(id));
+
+ipcMain.handle('db:getInvoices', async () => dbOps.getInvoices());
+ipcMain.handle('db:addInvoice', async (_, { invoice, taxLines }) => dbOps.addInvoice(invoice, taxLines));
+ipcMain.handle('db:updateInvoice', async (_, { invoice, taxLines }) => dbOps.updateInvoice(invoice, taxLines));
+ipcMain.handle('db:deleteInvoice', async (_, id) => dbOps.deleteInvoice(id));
+
+ipcMain.handle('fs:saveFile', async (_, { fileName, buffer }) => dbOps.saveFile(fileName, buffer));
+ipcMain.handle('fs:openFile', async (_, filePath) => dbOps.openFile(filePath));
+ipcMain.handle('fs:readFile', async (_, filePath) => dbOps.readFile(filePath));
+
+
+
+ipcMain.handle('auth:login', async (_, { email, password }) => dbOps.login(email, password));
+
+
 app.whenReady().then(() => {
+    initDb();
     createWindow();
 
-    // Verificar atualizações apenas em produção
     if (app.isPackaged) {
         autoUpdater.checkForUpdatesAndNotify();
     }
@@ -57,3 +73,4 @@ app.on('window-all-closed', () => {
         app.quit();
     }
 });
+

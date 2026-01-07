@@ -1,12 +1,11 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { 
-  Plus, Search, Trash2, FilePlus2, Upload, ChevronLeft, AlertCircle, 
+import {
+  Plus, Search, Trash2, FilePlus2, Upload, ChevronLeft, AlertCircle,
   FileCheck2, Calendar, Layers, Loader2, X, Building2, Hash, FileText,
   Eye, Edit3, Save, Download, FileX2
 } from 'lucide-react';
 import { Invoice, Supplier, TaxLine } from '../types';
-import { supabase } from '../lib/supabase';
 
 interface InvoicesProps {
   invoices: Invoice[];
@@ -21,7 +20,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Form State
   const [supplierId, setSupplierId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -52,7 +51,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
         const updated = { ...line, [field]: value };
         if (field === 'taxableValue' || field === 'rate') {
           updated.supportedVat = Number((updated.taxableValue * (updated.rate / 100)).toFixed(2));
-          updated.deductibleVat = updated.supportedVat; 
+          updated.deductibleVat = updated.supportedVat;
         }
         return updated;
       }
@@ -82,20 +81,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
 
     setDeletingId(invoice.id);
     try {
-      // 1. Remover anexo se existir
-      if (invoice.pdfPath) {
-        await supabase.storage.from('invoices').remove([invoice.pdfPath]);
-      }
-      
-      // 2. Remover da base de dados
-      const { error } = await supabase
-        .from('invoices')
-        .delete()
-        .eq('id', invoice.id);
-
-      if (error) throw error;
-
-      // 3. Actualizar estado local
+      await window.electron.db.deleteInvoice(invoice.id);
       setInvoices(prev => prev.filter(i => i.id !== invoice.id));
     } catch (err: any) {
       alert(`Erro ao eliminar factura: ${err.message}`);
@@ -113,78 +99,38 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
       let storagePath = editingInvoice?.pdfPath || null;
 
       if (selectedFile) {
-        if (editingInvoice?.pdfPath) {
-          await supabase.storage.from('invoices').remove([editingInvoice.pdfPath]);
-        }
+        const buffer = await selectedFile.arrayBuffer();
         const fileExt = selectedFile.name.split('.').pop();
         const cleanDocNum = docNumber.replace(/[/\\?%*:|"<>]/g, '_');
-        storagePath = `inv_${cleanDocNum}_${Date.now()}.${fileExt}`;
-        
-        const { error: uploadErr } = await supabase.storage
-          .from('invoices')
-          .upload(storagePath, selectedFile);
+        const fileName = `inv_${cleanDocNum}_${Date.now()}.${fileExt}`;
 
-        if (uploadErr) throw new Error(`Erro no upload: ${uploadErr.message}`);
+        storagePath = await window.electron.fs.saveFile(fileName, buffer);
       }
 
-      const invoicePayload = {
-        supplier_id: supplierId,
-        date,
-        document_number: docNumber,
-        notes,
-        has_pdf: !!storagePath,
-        pdf_path: storagePath,
-        total_taxable: totals.taxable,
-        total_supported: totals.supported,
-        total_deductible: totals.deductible,
-        total_document: totals.document
-      };
-
-      let currentInvoiceId = editingInvoice?.id;
-
-      if (editingInvoice) {
-        const { error: updateErr } = await supabase
-          .from('invoices')
-          .update(invoicePayload)
-          .eq('id', editingInvoice.id);
-        
-        if (updateErr) throw updateErr;
-        await supabase.from('tax_lines').delete().eq('invoice_id', editingInvoice.id);
-      } else {
-        const { data: invData, error: invErr } = await supabase
-          .from('invoices')
-          .insert([invoicePayload])
-          .select();
-        
-        if (invErr) throw invErr;
-        currentInvoiceId = invData[0].id;
-      }
-
-      const linesToInsert = taxLines.map(l => ({
-        invoice_id: currentInvoiceId,
-        taxable_value: l.taxableValue,
-        rate: l.rate,
-        supported_vat: l.supportedVat,
-        deductible_vat: l.deductibleVat
-      }));
-
-      const { error: linesErr } = await supabase.from('tax_lines').insert(linesToInsert);
-      if (linesErr) throw linesErr;
-
-      const finalInvoice: Invoice = {
-        id: currentInvoiceId!,
-        orderNumber: editingInvoice?.orderNumber || (invoices.length > 0 ? Math.max(...invoices.map(i => i.orderNumber)) + 1 : 1),
+      const invoiceData = {
+        id: editingInvoice?.id || crypto.randomUUID(),
         supplierId,
         date,
         documentNumber: docNumber,
         notes,
         hasPdf: !!storagePath,
-        pdfPath: storagePath || undefined,
-        lines: taxLines,
+        pdfPath: storagePath,
         totalTaxable: totals.taxable,
         totalSupported: totals.supported,
         totalDeductible: totals.deductible,
         totalDocument: totals.document
+      };
+
+      if (editingInvoice) {
+        await window.electron.db.updateInvoice(invoiceData, taxLines);
+      } else {
+        await window.electron.db.addInvoice(invoiceData, taxLines);
+      }
+
+      const finalInvoice: Invoice = {
+        ...invoiceData,
+        orderNumber: editingInvoice?.orderNumber || (invoices.length > 0 ? Math.max(...invoices.map(i => i.orderNumber)) + 1 : 1),
+        lines: taxLines
       };
 
       if (editingInvoice) {
@@ -202,6 +148,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
     }
   };
 
+
   const resetForm = () => {
     setEditingInvoice(null);
     setSupplierId('');
@@ -214,22 +161,19 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
   const handleDownload = async (invoice: Invoice) => {
     if (!invoice.pdfPath) return;
     try {
-      const { data, error } = await supabase.storage.from('invoices').download(invoice.pdfPath);
-      if (error) throw error;
-      const url = URL.createObjectURL(data);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Factura_${invoice.documentNumber}.pdf`;
-      link.click();
-    } catch (err: any) { alert(err.message); }
+      await window.electron.fs.openFile(invoice.pdfPath);
+    } catch (err: any) {
+      alert(`Erro ao abrir ficheiro: ${err.message}`);
+    }
   };
+
 
   if (showCreator) {
     return (
       <div className="space-y-6 animate-in slide-in-from-right-8 duration-500 pb-20">
         <div className="flex items-center justify-between">
-          <button 
-            onClick={() => { setShowCreator(false); resetForm(); }} 
+          <button
+            onClick={() => { setShowCreator(false); resetForm(); }}
             className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold transition-colors group"
           >
             <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
@@ -248,17 +192,17 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
               <span>{formError}</span>
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <Building2 size={12} className="text-blue-600" /> FORNECEDOR
                 </label>
-                <select 
-                  required 
-                  value={supplierId} 
-                  onChange={(e) => setSupplierId(e.target.value)} 
+                <select
+                  required
+                  value={supplierId}
+                  onChange={(e) => setSupplierId(e.target.value)}
                   className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all appearance-none"
                 >
                   <option value="">Seleccionar Empresa...</option>
@@ -269,12 +213,12 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <Calendar size={12} className="text-blue-600" /> DATA DA FACTURA
                 </label>
-                <input 
-                  required 
-                  type="date" 
-                  value={date} 
-                  onChange={(e) => setDate(e.target.value)} 
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all" 
+                <input
+                  required
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
                 />
               </div>
             </div>
@@ -284,13 +228,13 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <Hash size={12} className="text-blue-600" /> Nº DO DOCUMENTO
                 </label>
-                <input 
-                  required 
-                  type="text" 
+                <input
+                  required
+                  type="text"
                   placeholder="Ex: FA01"
-                  value={docNumber} 
-                  onChange={(e) => setDocNumber(e.target.value)} 
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all" 
+                  value={docNumber}
+                  onChange={(e) => setDocNumber(e.target.value)}
+                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
                 />
               </div>
               <div className="space-y-2">
@@ -299,9 +243,9 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
                 </label>
                 <input type="file" accept="application/pdf" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
                 <div className="flex flex-col gap-2">
-                  <button 
-                    type="button" 
-                    onClick={() => fileInputRef.current?.click()} 
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
                     className={`w-full h-[52px] flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed transition-all font-bold text-sm ${selectedFile ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-blue-200 text-blue-400 hover:bg-blue-50/50'}`}
                   >
                     {selectedFile ? <FileCheck2 size={18} /> : <Upload size={18} />}
@@ -318,11 +262,11 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
 
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col h-full">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">NOTAS ADICIONAIS</label>
-              <textarea 
-                value={notes} 
-                onChange={(e) => setNotes(e.target.value)} 
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
                 placeholder="Observações importantes sobre este documento..."
-                className="w-full flex-1 min-h-[120px] p-5 bg-slate-50 border border-slate-200 rounded-3xl outline-none resize-none font-medium text-slate-800 focus:ring-2 focus:ring-blue-500 transition-all text-sm" 
+                className="w-full flex-1 min-h-[120px] p-5 bg-slate-50 border border-slate-200 rounded-3xl outline-none resize-none font-medium text-slate-800 focus:ring-2 focus:ring-blue-500 transition-all text-sm"
               />
             </div>
           </div>
@@ -330,13 +274,13 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
           <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
             <div className="p-6 px-8 border-b flex justify-between items-center">
               <span className="font-black text-slate-800 flex items-center gap-3 uppercase text-xs tracking-widest">
-                <Layers className="text-blue-600" size={18}/> Detalhamento de Impostos
+                <Layers className="text-blue-600" size={18} /> Detalhamento de Impostos
               </span>
               <button type="button" onClick={addLine} className="text-blue-600 font-black text-sm hover:underline flex items-center gap-2">
                 + Adicionar Linha
               </button>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-slate-50/50 border-b">
@@ -353,18 +297,18 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
                     <tr key={l.id} className="group hover:bg-slate-50/50 transition-colors">
                       <td className="px-8 py-4">
                         <div className="relative">
-                          <input 
-                            type="number" step="0.01" value={l.taxableValue || ''} 
-                            onChange={(e) => updateLine(l.id, 'taxableValue', parseFloat(e.target.value) || 0)} 
-                            className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 placeholder:text-slate-400" 
-                            placeholder="0,00" 
+                          <input
+                            type="number" step="0.01" value={l.taxableValue || ''}
+                            onChange={(e) => updateLine(l.id, 'taxableValue', parseFloat(e.target.value) || 0)}
+                            className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 placeholder:text-slate-400"
+                            placeholder="0,00"
                           />
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 pointer-events-none">AOA</span>
                         </div>
                       </td>
                       <td className="px-8 py-4 w-40">
-                        <select 
-                          value={l.rate} onChange={(e) => updateLine(l.id, 'rate', parseFloat(e.target.value))} 
+                        <select
+                          value={l.rate} onChange={(e) => updateLine(l.id, 'rate', parseFloat(e.target.value))}
                           className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none text-center text-slate-900"
                         >
                           <option value="14">14%</option>
@@ -375,7 +319,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
                       </td>
                       <td className="px-8 py-4"><div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 font-black text-slate-800 text-center">{l.supportedVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</div></td>
                       <td className="px-8 py-4"><input type="number" step="0.01" value={l.deductibleVat} onChange={(e) => updateLine(l.id, 'deductibleVat', parseFloat(e.target.value) || 0)} className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none text-emerald-600 placeholder:text-slate-400" /></td>
-                      <td className="px-8 py-4 text-right"><button type="button" onClick={() => setTaxLines(taxLines.filter(x => x.id !== l.id))} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button></td>
+                      <td className="px-8 py-4 text-right"><button type="button" onClick={() => setTaxLines(taxLines.filter(x => x.id !== l.id))} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18} /></button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -391,11 +335,11 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
           </div>
 
           <div className="flex justify-end pt-4">
-            <button 
-              type="submit" disabled={isSubmitting} 
+            <button
+              type="submit" disabled={isSubmitting}
               className="px-16 py-5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-3xl flex items-center gap-4 shadow-2xl shadow-blue-600/30 transition-all active:scale-95 disabled:opacity-50"
             >
-              {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : <>{editingInvoice ? <Save size={24}/> : <FilePlus2 size={24}/>} {editingInvoice ? 'Guardar Alterações' : 'Guardar Factura'}</>}
+              {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : <>{editingInvoice ? <Save size={24} /> : <FilePlus2 size={24} />} {editingInvoice ? 'Guardar Alterações' : 'Guardar Factura'}</>}
             </button>
           </div>
         </form>
@@ -408,13 +352,13 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:w-96">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
+          <input
             type="text" placeholder="Pesquisar por Fornecedor ou Doc#..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm font-medium text-slate-800"
           />
         </div>
-        <button 
-          onClick={() => { resetForm(); setShowCreator(true); }} 
+        <button
+          onClick={() => { resetForm(); setShowCreator(true); }}
           className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-8 py-3.5 rounded-2xl font-black transition-all shadow-xl shadow-slate-900/10 active:scale-95"
         >
           <Plus size={20} />
@@ -452,22 +396,22 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers })
                   <td className="px-8 py-5 text-right font-black text-slate-900 text-base">{i.totalDocument.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</td>
                   <td className="px-8 py-5 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                       <button onClick={() => handleEdit(i)} className="p-2 text-blue-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-blue-100 transition-all" title="Ver/Editar Detalhes">
-                         <Edit3 size={18} />
-                       </button>
-                       {i.hasPdf && (
-                         <button onClick={() => handleDownload(i)} className="p-2 text-emerald-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-emerald-100 transition-all" title="Baixar PDF">
-                           <Download size={18} />
-                         </button>
-                       )}
-                       <button 
-                        onClick={() => removeInvoice(i)} 
+                      <button onClick={() => handleEdit(i)} className="p-2 text-blue-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-blue-100 transition-all" title="Ver/Editar Detalhes">
+                        <Edit3 size={18} />
+                      </button>
+                      {i.hasPdf && (
+                        <button onClick={() => handleDownload(i)} className="p-2 text-emerald-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-emerald-100 transition-all" title="Baixar PDF">
+                          <Download size={18} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => removeInvoice(i)}
                         disabled={deletingId === i.id}
-                        className="p-2 text-red-400 hover:text-red-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-red-100 transition-all" 
+                        className="p-2 text-red-400 hover:text-red-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-red-100 transition-all"
                         title="Eliminar Factura"
-                       >
-                         {deletingId === i.id ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
-                       </button>
+                      >
+                        {deletingId === i.id ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
+                      </button>
                     </div>
                   </td>
                 </tr>
