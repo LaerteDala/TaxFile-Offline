@@ -13,9 +13,11 @@ interface InvoicesProps {
   suppliers: Supplier[];
   documentTypes: DocumentType[];
   withholdingTypes: WithholdingType[];
+  initialInvoice?: Invoice | null;
+  onClose?: () => void;
 }
 
-const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, documentTypes, withholdingTypes }) => {
+const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, documentTypes, withholdingTypes, initialInvoice, onClose }) => {
   const [showCreator, setShowCreator] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +36,12 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
     { id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, isService: false, withholdingAmount: 0 }
   ]);
   const [formError, setFormError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (initialInvoice) {
+      handleEdit(initialInvoice);
+    }
+  }, [initialInvoice]);
 
   const totals = useMemo(() => {
     return taxLines.reduce((acc, line) => ({
@@ -163,6 +171,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
 
       setShowCreator(false);
       resetForm();
+      if (onClose) onClose();
     } catch (err: any) {
       setFormError(err.message);
     } finally {
@@ -194,7 +203,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
       <div className="space-y-6 animate-in slide-in-from-right-8 duration-500 pb-20">
         <div className="flex items-center justify-between">
           <button
-            onClick={() => { setShowCreator(false); resetForm(); }}
+            onClick={() => { setShowCreator(false); resetForm(); if (onClose) onClose(); }}
             className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold transition-colors group"
           >
             <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />

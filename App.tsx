@@ -43,11 +43,17 @@ import Settings from './components/Settings';
 import CCOperations from './components/CC_Operations';
 import CCStatement from './components/CC_Statement';
 import CCReports from './components/CC_Reports';
+import IRTWithholdingMap from './components/IRT_WithholdingMap';
+import IRTReports from './components/IRT_Reports';
+import IIWithholdingMap from './components/II_WithholdingMap';
+import IIReports from './components/II_Reports';
+import IPWithholdingMap from './components/IP_WithholdingMap';
+import IPReports from './components/IP_Reports';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['entidade', 'documentos', 'conta_corrente']);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
 
@@ -58,6 +64,7 @@ const App: React.FC = () => {
   const [ccDocuments, setCcDocuments] = useState<CCDocument[]>([]);
   const [selectedCCDocument, setSelectedCCDocument] = useState<CCDocument | null>(null);
   const [ccInitialIsViewing, setCcInitialIsViewing] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   const hasLoadedInitialData = useRef(false);
 
@@ -193,11 +200,35 @@ const App: React.FC = () => {
         { name: 'Contratos', icon: FileSignature, view: 'contracts' as View },
       ]
     },
-    { name: 'I. Industrial', icon: Landmark, view: 'tax_ii' as View },
+    {
+      name: 'I. Industrial',
+      icon: Landmark,
+      id: 'tax_ii',
+      subItems: [
+        { name: 'Mapa de Retenção', icon: FileSpreadsheet, view: 'ii_withholding_map' as View },
+        { name: 'Relatórios', icon: BarChart3, view: 'ii_reports' as View },
+      ]
+    },
     { name: 'I. Selo', icon: Coins, view: 'tax_is' as View },
-    { name: 'IR. Trabalho', icon: Percent, view: 'tax_irt' as View },
+    {
+      name: 'IR. Trabalho',
+      icon: Percent,
+      id: 'tax_irt',
+      subItems: [
+        { name: 'Mapa de Retenção', icon: FileSpreadsheet, view: 'irt_withholding_map' as View },
+        { name: 'Relatórios', icon: BarChart3, view: 'irt_reports' as View },
+      ]
+    },
     { name: 'IV. Acrescentado', icon: FileSpreadsheet, view: 'tax_iva' as View },
-    { name: 'I. Predial', icon: Home, view: 'tax_ip' as View },
+    {
+      name: 'I. Predial',
+      icon: Home,
+      id: 'tax_ip',
+      subItems: [
+        { name: 'Mapa de Retenção', icon: FileSpreadsheet, view: 'ip_withholding_map' as View },
+        { name: 'Relatórios', icon: BarChart3, view: 'ip_reports' as View },
+      ]
+    },
     { name: 'IV. Motorizados', icon: Car, view: 'tax_ivm' as View },
     { name: 'IA. Capitais', icon: Banknote, view: 'tax_iac' as View },
     { name: 'Definições', icon: SettingsIcon, view: 'settings' as View },
@@ -331,7 +362,17 @@ const App: React.FC = () => {
               />
             )}
             {currentView === 'suppliers' && <Suppliers suppliers={suppliers} setSuppliers={setSuppliers} setInvoices={setInvoices} />}
-            {currentView === 'invoices' && <Invoices invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} documentTypes={documentTypes} withholdingTypes={withholdingTypes} />}
+            {currentView === 'invoices' && (
+              <Invoices
+                invoices={invoices}
+                setInvoices={setInvoices}
+                suppliers={suppliers}
+                documentTypes={documentTypes}
+                withholdingTypes={withholdingTypes}
+                initialInvoice={selectedInvoice}
+                onClose={() => setSelectedInvoice(null)}
+              />
+            )}
             {currentView === 'inquiry' && <Inquiry invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} documentTypes={documentTypes} withholdingTypes={withholdingTypes} />}
             {currentView === 'reports' && <Reports invoices={invoices} suppliers={suppliers} documentTypes={documentTypes} withholdingTypes={withholdingTypes} />}
             {currentView === 'cc_operations' && (
@@ -354,6 +395,42 @@ const App: React.FC = () => {
               />
             )}
             {currentView === 'cc_reports' && <CCReports />}
+            {currentView === 'irt_withholding_map' && (
+              <IRTWithholdingMap
+                invoices={invoices}
+                suppliers={suppliers}
+                withholdingTypes={withholdingTypes}
+                onViewInvoice={(inv) => {
+                  setSelectedInvoice(inv);
+                  setCurrentView('invoices');
+                }}
+              />
+            )}
+            {currentView === 'irt_reports' && <IRTReports invoices={invoices} withholdingTypes={withholdingTypes} />}
+            {currentView === 'ii_withholding_map' && (
+              <IIWithholdingMap
+                invoices={invoices}
+                suppliers={suppliers}
+                withholdingTypes={withholdingTypes}
+                onViewInvoice={(inv) => {
+                  setSelectedInvoice(inv);
+                  setCurrentView('invoices');
+                }}
+              />
+            )}
+            {currentView === 'ii_reports' && <IIReports invoices={invoices} withholdingTypes={withholdingTypes} />}
+            {currentView === 'ip_withholding_map' && (
+              <IPWithholdingMap
+                invoices={invoices}
+                suppliers={suppliers}
+                withholdingTypes={withholdingTypes}
+                onViewInvoice={(inv) => {
+                  setSelectedInvoice(inv);
+                  setCurrentView('invoices');
+                }}
+              />
+            )}
+            {currentView === 'ip_reports' && <IPReports invoices={invoices} withholdingTypes={withholdingTypes} />}
             {currentView === 'settings' && (
               <Settings
                 documentTypes={documentTypes}
@@ -362,7 +439,7 @@ const App: React.FC = () => {
                 setWithholdingTypes={setWithholdingTypes}
               />
             )}
-            {['tax_ii', 'tax_is', 'tax_irt', 'tax_iva', 'tax_ip', 'tax_ivm', 'tax_iac', 'clients', 'staff', 'contracts'].includes(currentView) && (
+            {['tax_is', 'tax_iva', 'tax_ivm', 'tax_iac', 'clients', 'staff', 'contracts'].includes(currentView) && (
               <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
                 <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
                   {React.createElement(

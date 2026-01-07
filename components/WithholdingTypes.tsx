@@ -9,7 +9,8 @@ import {
     X,
     Loader2,
     Percent,
-    ShieldCheck
+    ShieldCheck,
+    Lock
 } from 'lucide-react';
 import { WithholdingType } from '../types';
 
@@ -130,7 +131,8 @@ const WithholdingTypes: React.FC<WithholdingTypesProps> = ({ withholdingTypes, s
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700"
+                                disabled={editingId !== null && ['IRT Grupo B', 'Imposto Industrial', 'Imposto Predial'].includes(withholdingTypes.find(wt => wt.id === editingId)?.name || '')}
+                                className={`w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 ${editingId !== null && ['IRT Grupo B', 'Imposto Industrial', 'Imposto Predial'].includes(withholdingTypes.find(wt => wt.id === editingId)?.name || '') ? 'bg-slate-100 cursor-not-allowed' : 'bg-slate-50'}`}
                                 placeholder="Ex: Imposto Industrial"
                             />
                         </div>
@@ -182,7 +184,10 @@ const WithholdingTypes: React.FC<WithholdingTypesProps> = ({ withholdingTypes, s
                         {filteredTypes.map((wt) => (
                             <tr key={wt.id} className="hover:bg-slate-50/50 transition-colors group">
                                 <td className="px-8 py-5">
-                                    <p className="font-bold text-slate-800">{wt.name}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-bold text-slate-800">{wt.name}</p>
+                                        {['IRT Grupo B', 'Imposto Industrial', 'Imposto Predial'].includes(wt.name) && <Lock size={14} className="text-amber-500" title="Protegido" />}
+                                    </div>
                                 </td>
                                 <td className="px-8 py-5 text-center">
                                     <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-black">
@@ -198,8 +203,9 @@ const WithholdingTypes: React.FC<WithholdingTypesProps> = ({ withholdingTypes, s
                                             <Edit3 size={18} />
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(wt.id)}
-                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm"
+                                            onClick={() => !['IRT Grupo B', 'Imposto Industrial', 'Imposto Predial'].includes(wt.name) ? handleDelete(wt.id) : alert('Este tipo de retenção é obrigatório e não pode ser eliminado.')}
+                                            className={`p-2 rounded-xl transition-all shadow-sm ${['IRT Grupo B', 'Imposto Industrial', 'Imposto Predial'].includes(wt.name) ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-white'}`}
+                                            disabled={['IRT Grupo B', 'Imposto Industrial', 'Imposto Predial'].includes(wt.name)}
                                         >
                                             <Trash2 size={18} />
                                         </button>
