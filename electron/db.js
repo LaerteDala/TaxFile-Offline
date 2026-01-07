@@ -63,11 +63,44 @@ export function initDb() {
             FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS withholding_types (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            rate REAL NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             email TEXT UNIQUE,
             password TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS cc_documents (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            nature TEXT NOT NULL,
+            reference_number TEXT,
+            year INTEGER,
+            period TEXT,
+            tax_type TEXT,
+            related_tax TEXT,
+            description TEXT,
+            taxable_value REAL DEFAULT 0,
+            rate REAL DEFAULT 0,
+            amount_to_pay REAL DEFAULT 0,
+            interest REAL DEFAULT 0,
+            fines REAL DEFAULT 0,
+            total_amount REAL DEFAULT 0,
+            issue_date TEXT,
+            due_date TEXT,
+            receipt_date TEXT,
+            attachment_path TEXT,
+            has_attachment INTEGER DEFAULT 0,
+            related_document_id TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (related_document_id) REFERENCES cc_documents(id) ON DELETE SET NULL
         );
     `);
 
@@ -86,12 +119,16 @@ export function initDb() {
     const tableInfoTaxLines = db.prepare("PRAGMA table_info(tax_lines)").all();
     const hasIsService = tableInfoTaxLines.some(col => col.name === 'is_service');
     const hasWithholdingAmount = tableInfoTaxLines.some(col => col.name === 'withholding_amount');
+    const hasWithholdingTypeId = tableInfoTaxLines.some(col => col.name === 'withholding_type_id');
 
     if (!hasIsService) {
         db.exec("ALTER TABLE tax_lines ADD COLUMN is_service INTEGER DEFAULT 0;");
     }
     if (!hasWithholdingAmount) {
         db.exec("ALTER TABLE tax_lines ADD COLUMN withholding_amount REAL DEFAULT 0;");
+    }
+    if (!hasWithholdingTypeId) {
+        db.exec("ALTER TABLE tax_lines ADD COLUMN withholding_type_id TEXT;");
     }
 
     // Add default document types if none exist
@@ -101,6 +138,15 @@ export function initDb() {
         insertDocType.run(crypto.randomUUID(), 'FT', 'Factura');
         insertDocType.run(crypto.randomUUID(), 'FR', 'Factura Recibo');
         insertDocType.run(crypto.randomUUID(), 'RC', 'Recibo');
+    }
+
+    // Add default withholding types if none exist
+    const withholdingTypeCount = db.prepare('SELECT count(*) as count FROM withholding_types').get().count;
+    if (withholdingTypeCount === 0) {
+        const insertWithholdingType = db.prepare('INSERT INTO withholding_types (id, name, rate) VALUES (?, ?, ?)');
+        insertWithholdingType.run(crypto.randomUUID(), 'Imposto Industrial', 6.5);
+        insertWithholdingType.run(crypto.randomUUID(), 'IRT Grupo B', 6.5);
+        insertWithholdingType.run(crypto.randomUUID(), 'Imposto Predial', 15.0);
     }
 
     // Add a default user if none exists (for local login)
@@ -139,6 +185,18 @@ export const dbOps = {
     },
     deleteDocumentType: (id) => db.prepare('DELETE FROM document_types WHERE id = ?').run(id),
 
+    // Withholding Types
+    getWithholdingTypes: () => db.prepare('SELECT * FROM withholding_types ORDER BY name').all(),
+    addWithholdingType: (wt) => {
+        const stmt = db.prepare('INSERT INTO withholding_types (id, name, rate) VALUES (?, ?, ?)');
+        return stmt.run(wt.id, wt.name, wt.rate);
+    },
+    updateWithholdingType: (wt) => {
+        const stmt = db.prepare('UPDATE withholding_types SET name = ?, rate = ? WHERE id = ?');
+        return stmt.run(wt.name, wt.rate, wt.id);
+    },
+    deleteWithholdingType: (id) => db.prepare('DELETE FROM withholding_types WHERE id = ?').run(id),
+
     // Invoices
     getInvoices: () => {
         const invoices = db.prepare(`
@@ -157,7 +215,8 @@ export const dbOps = {
                 has_pdf: !!inv.has_pdf,
                 tax_lines: lines.map(l => ({
                     ...l,
-                    is_service: !!l.is_service
+                    is_service: !!l.is_service,
+                    withholding_type_id: l.withholding_type_id
                 }))
             };
         });
@@ -172,8 +231,8 @@ export const dbOps = {
         `);
 
         const insertTaxLine = db.prepare(`
-            INSERT INTO tax_lines (id, invoice_id, taxable_value, rate, supported_vat, deductible_vat, is_service, withholding_amount)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tax_lines (id, invoice_id, taxable_value, rate, supported_vat, deductible_vat, is_service, withholding_amount, withholding_type_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const transaction = db.transaction((inv, lines) => {
@@ -191,7 +250,8 @@ export const dbOps = {
                     line.supportedVat,
                     line.deductibleVat,
                     line.isService ? 1 : 0,
-                    line.withholdingAmount
+                    line.withholdingAmount,
+                    line.withholdingTypeId
                 );
             }
         });
@@ -209,8 +269,8 @@ export const dbOps = {
 
         const deleteTaxLines = db.prepare('DELETE FROM tax_lines WHERE invoice_id = ?');
         const insertTaxLine = db.prepare(`
-            INSERT INTO tax_lines (id, invoice_id, taxable_value, rate, supported_vat, deductible_vat, is_service, withholding_amount)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tax_lines (id, invoice_id, taxable_value, rate, supported_vat, deductible_vat, is_service, withholding_amount, withholding_type_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const transaction = db.transaction((inv, lines) => {
@@ -229,7 +289,8 @@ export const dbOps = {
                     line.supportedVat,
                     line.deductibleVat,
                     line.isService ? 1 : 0,
-                    line.withholdingAmount
+                    line.withholdingAmount,
+                    line.withholdingTypeId
                 );
             }
         });
@@ -263,5 +324,67 @@ export const dbOps = {
             return fs.readFileSync(filePath);
         }
         return null;
-    }
+    },
+
+    // Current Account (Conta Corrente)
+    getCCDocuments: () => {
+        return db.prepare('SELECT * FROM cc_documents ORDER BY created_at DESC').all().map(doc => ({
+            id: doc.id,
+            type: doc.type,
+            nature: doc.nature,
+            referenceNumber: doc.reference_number,
+            year: doc.year,
+            period: doc.period,
+            taxType: doc.tax_type,
+            relatedTax: doc.related_tax,
+            description: doc.description,
+            taxableValue: doc.taxable_value,
+            rate: doc.rate,
+            amountToPay: doc.amount_to_pay,
+            interest: doc.interest,
+            fines: doc.fines,
+            totalAmount: doc.total_amount,
+            issueDate: doc.issue_date,
+            dueDate: doc.due_date,
+            receiptDate: doc.receipt_date,
+            attachmentPath: doc.attachment_path,
+            hasAttachment: !!doc.has_attachment,
+            relatedDocumentId: doc.related_document_id
+        }));
+    },
+    addCCDocument: (doc) => {
+        const stmt = db.prepare(`
+            INSERT INTO cc_documents (
+                id, type, nature, reference_number, year, period, tax_type, related_tax, 
+                description, taxable_value, rate, amount_to_pay, interest, fines, 
+                total_amount, issue_date, due_date, receipt_date, attachment_path, 
+                has_attachment, related_document_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        return stmt.run(
+            doc.id, doc.type, doc.nature, doc.referenceNumber, doc.year, doc.period, doc.taxType, doc.relatedTax,
+            doc.description, doc.taxableValue, doc.rate, doc.amountToPay, doc.interest, doc.fines,
+            doc.totalAmount, doc.issueDate, doc.dueDate, doc.receiptDate, doc.attachmentPath,
+            doc.hasAttachment ? 1 : 0, doc.relatedDocumentId
+        );
+    },
+    updateCCDocument: (doc) => {
+        const stmt = db.prepare(`
+            UPDATE cc_documents SET 
+                type = ?, nature = ?, reference_number = ?, year = ?, period = ?, 
+                tax_type = ?, related_tax = ?, description = ?, taxable_value = ?, 
+                rate = ?, amount_to_pay = ?, interest = ?, fines = ?, 
+                total_amount = ?, issue_date = ?, due_date = ?, receipt_date = ?, 
+                attachment_path = ?, has_attachment = ?, related_document_id = ?
+            WHERE id = ?
+        `);
+        return stmt.run(
+            doc.type, doc.nature, doc.referenceNumber, doc.year, doc.period,
+            doc.taxType, doc.relatedTax, doc.description, doc.taxableValue,
+            doc.rate, doc.amountToPay, doc.interest, doc.fines,
+            doc.totalAmount, doc.issueDate, doc.dueDate, doc.receiptDate,
+            doc.attachmentPath, doc.hasAttachment ? 1 : 0, doc.relatedDocumentId, doc.id
+        );
+    },
+    deleteCCDocument: (id) => db.prepare('DELETE FROM cc_documents WHERE id = ?').run(id)
 };

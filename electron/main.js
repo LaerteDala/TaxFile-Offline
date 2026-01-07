@@ -43,6 +43,10 @@ ipcMain.handle('db:getDocumentTypes', async () => dbOps.getDocumentTypes());
 ipcMain.handle('db:addDocumentType', async (_, docType) => dbOps.addDocumentType(docType));
 ipcMain.handle('db:updateDocumentType', async (_, docType) => dbOps.updateDocumentType(docType));
 ipcMain.handle('db:deleteDocumentType', async (_, id) => dbOps.deleteDocumentType(id));
+ipcMain.handle('db:getWithholdingTypes', async () => dbOps.getWithholdingTypes());
+ipcMain.handle('db:addWithholdingType', async (_, wt) => dbOps.addWithholdingType(wt));
+ipcMain.handle('db:updateWithholdingType', async (_, wt) => dbOps.updateWithholdingType(wt));
+ipcMain.handle('db:deleteWithholdingType', async (_, id) => dbOps.deleteWithholdingType(id));
 
 
 ipcMain.handle('db:getInvoices', async () => dbOps.getInvoices());
@@ -53,6 +57,10 @@ ipcMain.handle('db:deleteInvoice', async (_, id) => dbOps.deleteInvoice(id));
 ipcMain.handle('fs:saveFile', async (_, { fileName, buffer }) => dbOps.saveFile(fileName, buffer));
 ipcMain.handle('fs:openFile', async (_, filePath) => dbOps.openFile(filePath));
 ipcMain.handle('fs:readFile', async (_, filePath) => dbOps.readFile(filePath));
+ipcMain.handle('db:getCCDocuments', async () => dbOps.getCCDocuments());
+ipcMain.handle('db:addCCDocument', async (_, doc) => dbOps.addCCDocument(doc));
+ipcMain.handle('db:updateCCDocument', async (_, doc) => dbOps.updateCCDocument(doc));
+ipcMain.handle('db:deleteCCDocument', async (_, id) => dbOps.deleteCCDocument(id));
 
 
 

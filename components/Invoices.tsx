@@ -5,16 +5,17 @@ import {
   FileCheck2, Calendar, Layers, Loader2, X, Building2, Hash, FileText,
   Eye, Edit3, Save, Download, FileX2, CheckSquare, Square
 } from 'lucide-react';
-import { Invoice, Supplier, TaxLine, DocumentType } from '../types';
+import { Invoice, Supplier, TaxLine, DocumentType, WithholdingType } from '../types';
 
 interface InvoicesProps {
   invoices: Invoice[];
   setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>;
   suppliers: Supplier[];
   documentTypes: DocumentType[];
+  withholdingTypes: WithholdingType[];
 }
 
-const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, documentTypes }) => {
+const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, documentTypes, withholdingTypes }) => {
   const [showCreator, setShowCreator] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,12 +60,15 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
           updated.deductibleVat = updated.supportedVat;
         }
 
-        // Recalculate Withholding if it's a service
-        if (field === 'taxableValue' || field === 'isService') {
-          if (updated.isService) {
-            updated.withholdingAmount = Number((updated.taxableValue * 0.065).toFixed(2));
-          } else {
+        // Recalculate Withholding
+        if (field === 'taxableValue' || field === 'withholdingTypeId' || field === 'isService') {
+          if (updated.isService && updated.withholdingTypeId) {
+            const wt = withholdingTypes.find(t => t.id === updated.withholdingTypeId);
+            const wtRate = wt ? wt.rate : 6.5; // Default to 6.5 if not found
+            updated.withholdingAmount = Number((updated.taxableValue * (wtRate / 100)).toFixed(2));
+          } else if (!updated.isService) {
             updated.withholdingAmount = 0;
+            updated.withholdingTypeId = undefined;
           }
         }
 
@@ -324,7 +328,8 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Taxa (%)</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">IVA Suportado</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">IVA Dedutível</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Retenção (6.5%)</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Retenção</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Retenção</th>
                     <th className="px-8 py-4 w-20"></th>
                   </tr>
                 </thead>
@@ -375,6 +380,17 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
                           className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 text-center text-xs"
                           placeholder="0,00"
                         />
+                      </td>
+                      <td className="px-8 py-4">
+                        <select
+                          disabled={!l.isService}
+                          value={l.withholdingTypeId || ''}
+                          onChange={(e) => updateLine(l.id, 'withholdingTypeId', e.target.value)}
+                          className={`w-full p-3.5 border rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none text-xs ${!l.isService ? 'bg-slate-50 border-slate-100 text-slate-300' : 'bg-white border-slate-200 text-slate-900'}`}
+                        >
+                          <option value="">Seleccionar...</option>
+                          {withholdingTypes.map(wt => <option key={wt.id} value={wt.id}>{wt.name} ({wt.rate}%)</option>)}
+                        </select>
                       </td>
                       <td className="px-8 py-4">
                         <div className={`p-3.5 rounded-2xl border font-black text-center transition-all text-xs ${l.isService ? 'bg-amber-50 border-amber-100 text-amber-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>

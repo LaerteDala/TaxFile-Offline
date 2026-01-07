@@ -24,7 +24,7 @@ import {
   FileSpreadsheet,
   FolderArchive
 } from 'lucide-react';
-import { Invoice, Supplier, TaxLine, DocumentType } from '../types';
+import { Invoice, Supplier, TaxLine, DocumentType, WithholdingType } from '../types';
 import JSZip from 'jszip';
 
 interface InquiryProps {
@@ -32,13 +32,15 @@ interface InquiryProps {
   setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>;
   suppliers: Supplier[];
   documentTypes: DocumentType[];
+  withholdingTypes: WithholdingType[];
 }
 
-const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, documentTypes }) => {
+const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, documentTypes, withholdingTypes }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filterSupplier, setFilterSupplier] = useState('');
+  const [filterWithholdingType, setFilterWithholdingType] = useState('');
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -66,20 +68,33 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
       const matchesSearch = docNum.includes(term) || supName.includes(term);
       const matchesDate = (!startDate || inv.date >= startDate) && (!endDate || inv.date <= endDate);
       const matchesSupplier = !filterSupplier || inv.supplierId === filterSupplier;
+      const matchesWithholding = !filterWithholdingType || inv.lines.some(l => l.withholdingTypeId === filterWithholdingType);
 
-      return matchesSearch && matchesDate && matchesSupplier;
+      return matchesSearch && matchesDate && matchesSupplier && matchesWithholding;
     });
-  }, [invoices, suppliers, searchTerm, startDate, endDate, filterSupplier]);
+  }, [invoices, suppliers, searchTerm, startDate, endDate, filterSupplier, filterWithholdingType]);
 
   const totals = useMemo(() => {
-    return filteredData.reduce((acc, row) => ({
+    const baseTotals = filteredData.reduce((acc, row) => ({
       taxable: acc.taxable + row.totalTaxable,
       supported: acc.supported + row.totalSupported,
       deductible: acc.deductible + row.totalDeductible,
       withholding: acc.withholding + row.totalWithholding,
       total: acc.total + row.totalDocument
     }), { taxable: 0, supported: 0, deductible: 0, withholding: 0, total: 0 });
-  }, [filteredData]);
+
+    const withholdingBreakdown = withholdingTypes.map(wt => {
+      const amount = filteredData.reduce((acc, inv) => {
+        const lineSum = inv.lines
+          .filter(l => l.withholdingTypeId === wt.id)
+          .reduce((sum, l) => sum + l.withholdingAmount, 0);
+        return acc + lineSum;
+      }, 0);
+      return { ...wt, amount };
+    }).filter(wt => wt.amount > 0);
+
+    return { ...baseTotals, withholdingBreakdown };
+  }, [filteredData, withholdingTypes]);
 
   const selectedInvoice = useMemo(() => {
     if (!selectedInvoiceId) return null;
@@ -126,6 +141,14 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
     const rows = filteredData.map(row => {
       const supplier = suppliers.find(s => s.id === row.supplierId);
       const docType = documentTypes.find(dt => dt.id === row.documentTypeId);
+
+      // Get withholding types names for this invoice
+      const wTypes = row.lines
+        .map(l => withholdingTypes.find(wt => wt.id === l.withholdingTypeId)?.name)
+        .filter(Boolean)
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .join(", ");
+
       return [
         row.orderNumber,
         `"${docType?.code || '---'}"`,
@@ -138,6 +161,7 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
         row.totalSupported.toFixed(2).replace('.', ','),
         row.totalDeductible.toFixed(2).replace('.', ','),
         row.totalWithholding.toFixed(2).replace('.', ','),
+        `"${wTypes}"`,
         `"${(row.notes || "").replace(/\n/g, ' ')}"`
       ];
     });
@@ -346,20 +370,26 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
                         <th className="px-6 py-3">Base Tributável</th>
                         <th className="px-6 py-3 text-center">IVA (%)</th>
                         <th className="px-6 py-3 text-right">IVA Suportado</th>
-                        <th className="px-6 py-3 text-right">Retenção (6.5%)</th>
+                        <th className="px-6 py-3 text-right">Retenção</th>
                         <th className="px-6 py-3 text-right">IVA Dedutível</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {selectedInvoice.lines.map((line) => (
-                        <tr key={line.id}>
-                          <td className="px-6 py-4 font-bold text-slate-700">{line.taxableValue.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</td>
-                          <td className="px-6 py-4 text-center"><span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-full">{line.rate}%</span></td>
-                          <td className="px-6 py-4 text-right font-bold text-slate-600">{line.supportedVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
-                          <td className="px-6 py-4 text-right font-bold text-amber-600">{line.withholdingAmount.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
-                          <td className="px-6 py-4 text-right font-black text-emerald-600">{line.deductibleVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
-                        </tr>
-                      ))}
+                      {selectedInvoice.lines.map((line) => {
+                        const wt = withholdingTypes.find(t => t.id === line.withholdingTypeId);
+                        return (
+                          <tr key={line.id}>
+                            <td className="px-6 py-4 font-bold text-slate-700">{line.taxableValue.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</td>
+                            <td className="px-6 py-4 text-center"><span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-full">{line.rate}%</span></td>
+                            <td className="px-6 py-4 text-right font-bold text-slate-600">{line.supportedVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
+                            <td className="px-6 py-4 text-right">
+                              <p className="font-bold text-amber-600">{line.withholdingAmount.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</p>
+                              {wt && <p className="text-[8px] font-black text-slate-400 uppercase">{wt.name} ({wt.rate}%)</p>}
+                            </td>
+                            <td className="px-6 py-4 text-right font-black text-emerald-600">{line.deductibleVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                     <tfoot className="bg-slate-900 text-white font-black">
                       <tr>
@@ -431,34 +461,51 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
               <option value="">Todos os Fornecedores</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
+            <select value={filterWithholdingType} onChange={(e) => setFilterWithholdingType(e.target.value)} className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold">
+              <option value="">Todas as Retenções</option>
+              {withholdingTypes.map(wt => <option key={wt.id} value={wt.id}>{wt.name}</option>)}
+            </select>
           </div>
         </div>
-
-        <div className="flex items-center gap-3 w-full xl:w-auto">
-          <button
-            onClick={() => window.print()}
-            className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-          >
-            <Printer size={18} />
-            Imprimir
-          </button>
-          <button
-            onClick={exportToExcel}
-            className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-          >
-            <FileSpreadsheet size={18} className="text-emerald-600" />
-            Exportar Excel
-          </button>
-          <button
-            onClick={exportAttachmentsZip}
-            disabled={isZipping}
-            className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm transition-all shadow-xl shadow-emerald-600/20 active:scale-95 disabled:opacity-50"
-          >
-            {isZipping ? <Loader2 className="animate-spin" size={18} /> : <FolderArchive size={18} />}
-            {isZipping ? 'A Gerar ZIP...' : 'Exportar Anexos (ZIP)'}
-          </button>
-        </div>
       </div>
+
+      <div className="flex items-center gap-3 w-full xl:w-auto">
+        <button
+          onClick={() => window.print()}
+          className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+        >
+          <Printer size={18} />
+          Imprimir
+        </button>
+        <button
+          onClick={exportToExcel}
+          className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+        >
+          <FileSpreadsheet size={18} className="text-emerald-600" />
+          Exportar Excel
+        </button>
+        <button
+          onClick={exportAttachmentsZip}
+          disabled={isZipping}
+          className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm transition-all shadow-xl shadow-emerald-600/20 active:scale-95 disabled:opacity-50"
+        >
+          {isZipping ? <Loader2 className="animate-spin" size={18} /> : <FolderArchive size={18} />}
+          {isZipping ? 'A Gerar ZIP...' : 'Exportar Anexos (ZIP)'}
+        </button>
+      </div>
+      {totals.withholdingBreakdown.length > 0 && (
+        <div className="flex flex-wrap gap-3 animate-in slide-in-from-top-4 duration-500">
+          {totals.withholdingBreakdown.map(wt => (
+            <div key={wt.id} className="bg-amber-50 border border-amber-100 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-sm">
+              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+              <div>
+                <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">{wt.name}</p>
+                <p className="text-sm font-black text-slate-800">{wt.amount.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">

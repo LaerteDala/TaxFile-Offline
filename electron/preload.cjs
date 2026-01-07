@@ -14,6 +14,14 @@ contextBridge.exposeInMainWorld('electron', {
         addDocumentType: (docType) => ipcRenderer.invoke('db:addDocumentType', docType),
         updateDocumentType: (docType) => ipcRenderer.invoke('db:updateDocumentType', docType),
         deleteDocumentType: (id) => ipcRenderer.invoke('db:deleteDocumentType', id),
+        getWithholdingTypes: () => ipcRenderer.invoke('db:getWithholdingTypes'),
+        addWithholdingType: (wt) => ipcRenderer.invoke('db:addWithholdingType', wt),
+        updateWithholdingType: (wt) => ipcRenderer.invoke('db:updateWithholdingType', wt),
+        deleteWithholdingType: (id) => ipcRenderer.invoke('db:deleteWithholdingType', id),
+        getCCDocuments: () => ipcRenderer.invoke('db:getCCDocuments'),
+        addCCDocument: (doc) => ipcRenderer.invoke('db:addCCDocument', doc),
+        updateCCDocument: (doc) => ipcRenderer.invoke('db:updateCCDocument', doc),
+        deleteCCDocument: (id) => ipcRenderer.invoke('db:deleteCCDocument', id),
     },
 
     fs: {

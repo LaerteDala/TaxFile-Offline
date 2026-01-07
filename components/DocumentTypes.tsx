@@ -201,7 +201,7 @@ const DocumentTypes: React.FC<DocumentTypesProps> = ({ documentTypes, setDocumen
                         placeholder="Pesquisar por Código ou Nome..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm font-medium"
+                        className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm font-medium"
                     />
                 </div>
                 <button

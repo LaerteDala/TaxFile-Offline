@@ -11,26 +11,53 @@ import {
   Menu,
   SearchCode,
   Loader2,
-  Settings
+  Settings as SettingsIcon,
+  Coins,
+  Percent,
+  Home,
+  Car,
+  Banknote,
+  Landmark,
+  FileSpreadsheet,
+  ChevronDown,
+  ChevronRight,
+  Truck,
+  UserPlus,
+  Contact,
+  Folder,
+  FileSignature,
+  FileCheck,
+  Wallet,
+  History,
+  ArrowLeftRight,
+  PieChart
 } from 'lucide-react';
-import { View, Supplier, Invoice, DocumentType } from './types';
+import { View, Supplier, Invoice, DocumentType, WithholdingType, CCDocument } from './types';
 import Dashboard from './components/Dashboard';
 import Suppliers from './components/Suppliers';
 import Invoices from './components/Invoices';
 import Reports from './components/Reports';
 import Inquiry from './components/Inquiry';
 import Login from './components/Login';
-import DocumentTypes from './components/DocumentTypes';
+import Settings from './components/Settings';
+import CCOperations from './components/CC_Operations';
+import CCStatement from './components/CC_Statement';
+import CCReports from './components/CC_Reports';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['entidade', 'documentos', 'conta_corrente']);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const [withholdingTypes, setWithholdingTypes] = useState<WithholdingType[]>([]);
+  const [ccDocuments, setCcDocuments] = useState<CCDocument[]>([]);
+  const [selectedCCDocument, setSelectedCCDocument] = useState<CCDocument | null>(null);
+  const [ccInitialIsViewing, setCcInitialIsViewing] = useState(false);
 
   const hasLoadedInitialData = useRef(false);
 
@@ -43,6 +70,9 @@ const App: React.FC = () => {
 
       const docs = await window.electron.db.getDocumentTypes();
       setDocumentTypes(docs || []);
+
+      const wts = await window.electron.db.getWithholdingTypes();
+      setWithholdingTypes(wts || []);
 
       const invs = await window.electron.db.getInvoices();
 
@@ -63,7 +93,8 @@ const App: React.FC = () => {
           supportedVat: l.supported_vat,
           deductibleVat: l.deductible_vat,
           isService: !!l.is_service,
-          withholdingAmount: l.withholding_amount || 0
+          withholdingAmount: l.withholding_amount || 0,
+          withholdingTypeId: l.withholding_type_id
         })),
         totalTaxable: i.total_taxable,
         totalSupported: i.total_supported,
@@ -73,6 +104,10 @@ const App: React.FC = () => {
       }));
 
       setInvoices(formattedInvoices);
+
+      const ccs = await window.electron.db.getCCDocuments();
+      setCcDocuments(ccs || []);
+
       hasLoadedInitialData.current = true;
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -110,19 +145,62 @@ const App: React.FC = () => {
       setSuppliers([]);
       setInvoices([]);
       setDocumentTypes([]);
+      setWithholdingTypes([]);
       hasLoadedInitialData.current = false;
     }
   };
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
+  const toggleMenu = (menuName: string) => {
+    setExpandedMenus(prev =>
+      prev.includes(menuName)
+        ? prev.filter(m => m !== menuName)
+        : [...prev, menuName]
+    );
+  };
+
   const navigation = [
     { name: 'Dashboard', icon: LayoutDashboard, view: 'dashboard' as View },
-    { name: 'Fornecedores', icon: Users, view: 'suppliers' as View },
-    { name: 'Facturas', icon: FileText, view: 'invoices' as View },
     { name: 'Consulta', icon: SearchCode, view: 'inquiry' as View },
     { name: 'Relatórios', icon: BarChart3, view: 'reports' as View },
-    { name: 'Tipos de Doc', icon: Settings, view: 'document_types' as View },
+    {
+      name: 'Conta corrente',
+      icon: Wallet,
+      id: 'conta_corrente',
+      subItems: [
+        { name: 'Extracto', icon: History, view: 'cc_statement' as View },
+        { name: 'Operações', icon: ArrowLeftRight, view: 'cc_operations' as View },
+        { name: 'Relatórios', icon: PieChart, view: 'cc_reports' as View },
+      ]
+    },
+    {
+      name: 'Entidade',
+      icon: Users,
+      id: 'entidade',
+      subItems: [
+        { name: 'Fornecedores', icon: Truck, view: 'suppliers' as View },
+        { name: 'Clientes', icon: UserPlus, view: 'clients' as View },
+        { name: 'Pessoal', icon: Contact, view: 'staff' as View },
+      ]
+    },
+    {
+      name: 'Documentos',
+      icon: Folder,
+      id: 'documentos',
+      subItems: [
+        { name: 'Facturas', icon: FileText, view: 'invoices' as View },
+        { name: 'Contratos', icon: FileSignature, view: 'contracts' as View },
+      ]
+    },
+    { name: 'I. Industrial', icon: Landmark, view: 'tax_ii' as View },
+    { name: 'I. Selo', icon: Coins, view: 'tax_is' as View },
+    { name: 'IR. Trabalho', icon: Percent, view: 'tax_irt' as View },
+    { name: 'IV. Acrescentado', icon: FileSpreadsheet, view: 'tax_iva' as View },
+    { name: 'I. Predial', icon: Home, view: 'tax_ip' as View },
+    { name: 'IV. Motorizados', icon: Car, view: 'tax_ivm' as View },
+    { name: 'IA. Capitais', icon: Banknote, view: 'tax_iac' as View },
+    { name: 'Definições', icon: SettingsIcon, view: 'settings' as View },
   ];
 
   if (!session && !isLoading) {
@@ -148,20 +226,61 @@ const App: React.FC = () => {
           {isSidebarOpen && <span className="font-bold text-xl text-white tracking-tight">TaxFile<span className="text-blue-500">ERP</span></span>}
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          {navigation.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => setCurrentView(item.view)}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === item.view
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-            >
-              <item.icon size={20} />
-              {isSidebarOpen && <span className="font-medium">{item.name}</span>}
-            </button>
-          ))}
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
+          {navigation.map((item) => {
+            if (item.subItems) {
+              const isExpanded = expandedMenus.includes(item.id!);
+              const isChildActive = item.subItems.some(sub => sub.view === currentView);
+
+              return (
+                <div key={item.id} className="space-y-1">
+                  <button
+                    onClick={() => toggleMenu(item.id!)}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${isChildActive ? 'text-white bg-slate-800/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <item.icon size={20} />
+                      {isSidebarOpen && <span className="font-bold text-sm">{item.name}</span>}
+                    </div>
+                    {isSidebarOpen && (isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                  </button>
+
+                  {isExpanded && isSidebarOpen && (
+                    <div className="ml-4 pl-4 border-l border-slate-800 space-y-1 animate-in slide-in-from-left-2 duration-200">
+                      {item.subItems.map((sub) => (
+                        <button
+                          key={sub.view}
+                          onClick={() => setCurrentView(sub.view)}
+                          className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-bold transition-all ${currentView === sub.view
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                            : 'text-slate-500 hover:text-white hover:bg-slate-800'
+                            }`}
+                        >
+                          <sub.icon size={16} />
+                          <span>{sub.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <button
+                key={item.name}
+                onClick={() => setCurrentView(item.view!)}
+                className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === item.view
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}
+              >
+                <item.icon size={20} />
+                {isSidebarOpen && <span className="font-bold text-sm">{item.name}</span>}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="p-4 border-t border-slate-800">
@@ -212,10 +331,56 @@ const App: React.FC = () => {
               />
             )}
             {currentView === 'suppliers' && <Suppliers suppliers={suppliers} setSuppliers={setSuppliers} setInvoices={setInvoices} />}
-            {currentView === 'invoices' && <Invoices invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} documentTypes={documentTypes} />}
-            {currentView === 'inquiry' && <Inquiry invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} documentTypes={documentTypes} />}
-            {currentView === 'reports' && <Reports invoices={invoices} suppliers={suppliers} documentTypes={documentTypes} />}
-            {currentView === 'document_types' && <DocumentTypes documentTypes={documentTypes} setDocumentTypes={setDocumentTypes} />}
+            {currentView === 'invoices' && <Invoices invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} documentTypes={documentTypes} withholdingTypes={withholdingTypes} />}
+            {currentView === 'inquiry' && <Inquiry invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} documentTypes={documentTypes} withholdingTypes={withholdingTypes} />}
+            {currentView === 'reports' && <Reports invoices={invoices} suppliers={suppliers} documentTypes={documentTypes} withholdingTypes={withholdingTypes} />}
+            {currentView === 'cc_operations' && (
+              <CCOperations
+                documents={ccDocuments}
+                onRefresh={() => fetchData(true)}
+                initialDocument={selectedCCDocument}
+                initialIsViewing={ccInitialIsViewing}
+                onClose={() => setSelectedCCDocument(null)}
+              />
+            )}
+            {currentView === 'cc_statement' && (
+              <CCStatement
+                documents={ccDocuments}
+                onViewDocument={(doc, isViewing) => {
+                  setSelectedCCDocument(doc);
+                  setCcInitialIsViewing(isViewing);
+                  setCurrentView('cc_operations');
+                }}
+              />
+            )}
+            {currentView === 'cc_reports' && <CCReports />}
+            {currentView === 'settings' && (
+              <Settings
+                documentTypes={documentTypes}
+                setDocumentTypes={setDocumentTypes}
+                withholdingTypes={withholdingTypes}
+                setWithholdingTypes={setWithholdingTypes}
+              />
+            )}
+            {['tax_ii', 'tax_is', 'tax_irt', 'tax_iva', 'tax_ip', 'tax_ivm', 'tax_iac', 'clients', 'staff', 'contracts'].includes(currentView) && (
+              <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
+                <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
+                  {React.createElement(
+                    navigation.find(n => n.view === currentView)?.icon ||
+                    navigation.flatMap(n => n.subItems || []).find(s => s.view === currentView)?.icon ||
+                    FileText,
+                    { size: 40 }
+                  )}
+                </div>
+                <h2 className="text-2xl font-black text-slate-800 mb-2">
+                  Módulo {
+                    navigation.find(n => n.view === currentView)?.name ||
+                    navigation.flatMap(n => n.subItems || []).find(s => s.view === currentView)?.name
+                  }
+                </h2>
+                <p className="font-medium">Funcionalidades em breve...</p>
+              </div>
+            )}
           </div>
         </div>
       </main>

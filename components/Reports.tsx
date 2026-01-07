@@ -11,16 +11,18 @@ import {
   ArrowUpRight,
   Printer
 } from 'lucide-react';
-import { Invoice, Supplier, DocumentType } from '../types';
+import { Invoice, Supplier, DocumentType, WithholdingType } from '../types';
 
 interface ReportsProps {
   invoices: Invoice[];
   suppliers: Supplier[];
   documentTypes: DocumentType[];
+  withholdingTypes: WithholdingType[];
 }
 
-const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes }) => {
+const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes, withholdingTypes }) => {
   const [showPreview, setShowPreview] = useState(false);
+  const [reportMode, setReportMode] = useState<'iva' | 'withholding'>('iva');
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -57,35 +59,79 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes })
 
   // Totals for the filtered set
   const filteredTotals = useMemo(() => {
-    return filteredData.reduce((acc, row) => ({
+    const base = filteredData.reduce((acc, row) => ({
       taxable: acc.taxable + row.totalTaxable,
       supported: acc.supported + row.totalSupported,
       deductible: acc.deductible + row.totalDeductible,
       withholding: acc.withholding + row.totalWithholding,
       total: acc.total + row.totalDocument
     }), { taxable: 0, supported: 0, deductible: 0, withholding: 0, total: 0 });
-  }, [filteredData]);
+
+    const withholdingByType = withholdingTypes.map(wt => {
+      const amount = filteredData.reduce((acc, inv) => {
+        const lineSum = inv.lines
+          .filter(l => l.withholdingTypeId === wt.id)
+          .reduce((sum, l) => sum + l.withholdingAmount, 0);
+        return acc + lineSum;
+      }, 0);
+      return { ...wt, amount };
+    }).filter(wt => wt.amount > 0);
+
+    const withholdingBySupplier = suppliers.map(s => {
+      const amount = filteredData
+        .filter(inv => inv.supplierId === s.id)
+        .reduce((acc, inv) => acc + inv.totalWithholding, 0);
+      return { ...s, amount };
+    }).filter(s => s.amount > 0).sort((a, b) => b.amount - a.amount);
+
+    return { ...base, withholdingByType, withholdingBySupplier };
+  }, [filteredData, withholdingTypes, suppliers]);
 
   // Function to export data to CSV (Excel compatible)
   const exportToExcel = () => {
     if (filteredData.length === 0) return;
 
-    const headers = ["Nº Ordem", "Tipo", "Fornecedor", "NIF", "Data", "Doc#", "Total Documento", "Total Tributável", "Total Suportado", "Total Dedutível", "Retenção", "Notas"];
+    let headers, rows, filename;
 
-    const rows = filteredData.map(row => [
-      row.orderNumber,
-      `"${row.documentTypeCode}"`,
-      `"${row.supplierName}"`,
-      `"${row.nif}"`,
-      row.date,
-      `"${row.documentNumber}"`,
-      row.totalDocument.toFixed(2).replace('.', ','),
-      row.totalTaxable.toFixed(2).replace('.', ','),
-      row.totalSupported.toFixed(2).replace('.', ','),
-      row.totalDeductible.toFixed(2).replace('.', ','),
-      row.totalWithholding.toFixed(2).replace('.', ','),
-      `"${(row.notes || "").replace(/\n/g, ' ')}"`
-    ]);
+    if (reportMode === 'iva') {
+      headers = ["Nº Ordem", "Tipo", "Fornecedor", "NIF", "Data", "Doc#", "Total Documento", "Total Tributável", "Total Suportado", "Total Dedutível", "Retenção", "Notas"];
+      rows = filteredData.map(row => [
+        row.orderNumber,
+        `"${row.documentTypeCode}"`,
+        `"${row.supplierName}"`,
+        `"${row.nif}"`,
+        row.date,
+        `"${row.documentNumber}"`,
+        row.totalDocument.toFixed(2).replace('.', ','),
+        row.totalTaxable.toFixed(2).replace('.', ','),
+        row.totalSupported.toFixed(2).replace('.', ','),
+        row.totalDeductible.toFixed(2).replace('.', ','),
+        row.totalWithholding.toFixed(2).replace('.', ','),
+        `"${(row.notes || "").replace(/\n/g, ' ')}"`
+      ]);
+      filename = `Consolidacao_IVA_${new Date().toISOString().split('T')[0]}.csv`;
+    } else {
+      headers = ["Fornecedor", "NIF", "Data", "Doc#", "Tipo Retenção", "Taxa (%)", "Base Tributável", "Valor Retido"];
+      rows = [];
+      filteredData.forEach(inv => {
+        inv.lines.forEach(line => {
+          if (line.withholdingTypeId) {
+            const wt = withholdingTypes.find(t => t.id === line.withholdingTypeId);
+            rows.push([
+              `"${inv.supplierName}"`,
+              `"${inv.nif}"`,
+              inv.date,
+              `"${inv.documentNumber}"`,
+              `"${wt?.name || 'N/A'}"`,
+              wt?.rate || 0,
+              line.taxableValue.toFixed(2).replace('.', ','),
+              line.withholdingAmount.toFixed(2).replace('.', ',')
+            ]);
+          }
+        });
+      });
+      filename = `Relatorio_Retencoes_${new Date().toISOString().split('T')[0]}.csv`;
+    }
 
     const csvContent = [
       headers.join(";"),
@@ -96,7 +142,7 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes })
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Consolidacao_IVA_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -115,11 +161,27 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes })
               <ChevronLeft size={20} />
             </button>
             <div>
-              <h2 className="text-2xl font-black text-slate-800">Consolidação de IVA</h2>
+              <h2 className="text-2xl font-black text-slate-800">
+                {reportMode === 'iva' ? 'Consolidação de IVA' : 'Relatório de Retenções'}
+              </h2>
               <p className="text-sm text-slate-500 font-medium">Visualização interactiva dos dados filtrados</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex bg-slate-100 p-1 rounded-xl mr-4">
+              <button
+                onClick={() => setReportMode('iva')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${reportMode === 'iva' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                IVA
+              </button>
+              <button
+                onClick={() => setReportMode('withholding')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${reportMode === 'withholding' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Retenções
+              </button>
+            </div>
             <button
               onClick={() => window.print()}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all shadow-sm"
@@ -184,94 +246,171 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes })
           </div>
         </div>
 
-        {/* Financial Summary */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-slate-900 p-6 rounded-3xl text-white shadow-xl shadow-slate-900/10 border border-slate-800">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Base Tributável</p>
-            <p className="text-xl font-bold">{filteredTotals.taxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
-          </div>
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">IVA Suportado</p>
-            <p className="text-xl font-bold text-slate-800">{filteredTotals.supported.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
-          </div>
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">IVA Dedutível</p>
-            <div className="flex items-center gap-2">
-              <p className="text-xl font-bold text-emerald-600">{filteredTotals.deductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
-              <ArrowUpRight size={16} className="text-emerald-500" />
+        {reportMode === 'iva' ? (
+          <>
+            {/* Financial Summary IVA */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="bg-slate-900 p-6 rounded-3xl text-white shadow-xl shadow-slate-900/10 border border-slate-800">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Base Tributável</p>
+                <p className="text-xl font-bold">{filteredTotals.taxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">IVA Suportado</p>
+                <p className="text-xl font-bold text-slate-800">{filteredTotals.supported.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">IVA Dedutível</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xl font-bold text-emerald-600">{filteredTotals.deductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
+                  <ArrowUpRight size={16} className="text-emerald-500" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Retenção</p>
+                <p className="text-xl font-bold text-amber-600">{filteredTotals.withholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
+              </div>
+              <div className="bg-blue-600 p-6 rounded-3xl text-white shadow-xl shadow-blue-600/20">
+                <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Total Consolidado</p>
+                <p className="text-xl font-black">{filteredTotals.total.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
+              </div>
             </div>
-          </div>
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-            <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Retenção</p>
-            <p className="text-xl font-bold text-amber-600">{filteredTotals.withholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
-          </div>
-          <div className="bg-blue-600 p-6 rounded-3xl text-white shadow-xl shadow-blue-600/20">
-            <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Total Consolidado</p>
-            <p className="text-xl font-black">{filteredTotals.total.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
-          </div>
-        </div>
 
-        {/* Data Table */}
-        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ord</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fornecedor</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Data</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Documento</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Dedutível</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Retenção</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredData.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <span className="text-xs font-bold text-slate-400 group-hover:text-blue-500 transition-colors">#{row.orderNumber}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-black font-mono">{row.documentTypeCode}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-slate-800">{row.supplierName}</p>
-                      <p className="text-[10px] font-medium text-slate-500">NIF: {row.nif}</p>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="text-xs font-semibold text-slate-600">{row.date}</span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="px-2 py-1 bg-slate-100 rounded text-[10px] font-mono font-black text-slate-500">{row.documentNumber}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="text-sm font-bold text-emerald-600">{row.totalDeductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="text-sm font-bold text-amber-600">{row.totalWithholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="text-sm font-black text-slate-900">{row.totalDocument.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
-                    </td>
-                  </tr>
-                ))}
-                {filteredData.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-20 text-center">
-                      <div className="flex flex-col items-center justify-center text-slate-400">
-                        <Filter size={64} className="mb-4 opacity-10" />
-                        <p className="text-lg font-medium">Nenhum dado com os filtros aplicados</p>
-                        <p className="text-sm">Tente ajustar os filtros de pesquisa ou data.</p>
+            {/* Data Table IVA */}
+            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ord</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fornecedor</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Data</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Documento</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Dedutível</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Retenção</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredData.map((row) => (
+                      <tr key={row.id} className="hover:bg-slate-50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <span className="text-xs font-bold text-slate-400 group-hover:text-blue-500 transition-colors">#{row.orderNumber}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-black font-mono">{row.documentTypeCode}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-bold text-slate-800">{row.supplierName}</p>
+                          <p className="text-[10px] font-medium text-slate-500">NIF: {row.nif}</p>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="text-xs font-semibold text-slate-600">{row.date}</span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="px-2 py-1 bg-slate-100 rounded text-[10px] font-mono font-black text-slate-500">{row.documentNumber}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-sm font-bold text-emerald-600">{row.totalDeductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-sm font-bold text-amber-600">{row.totalWithholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-sm font-black text-slate-900">{row.totalDocument.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredData.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="px-6 py-20 text-center">
+                          <div className="flex flex-col items-center justify-center text-slate-400">
+                            <Filter size={64} className="mb-4 opacity-10" />
+                            <p className="text-lg font-medium">Nenhum dado com os filtros aplicados</p>
+                            <p className="text-sm">Tente ajustar os filtros de pesquisa ou data.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Financial Summary Withholding */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {filteredTotals.withholdingByType.map(wt => (
+                    <div key={wt.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{wt.name}</p>
+                        <p className="text-xl font-bold text-slate-800">{wt.amount.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                      <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center font-black text-xs">
+                        {wt.rate}%
+                      </div>
+                    </div>
+                  ))}
+                  {filteredTotals.withholdingByType.length === 0 && (
+                    <div className="col-span-2 bg-slate-50 p-12 rounded-3xl border border-dashed border-slate-200 text-center text-slate-400 font-bold">
+                      Nenhuma retenção encontrada no período.
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-6 border-b border-slate-100">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Detalhamento por Documento</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          <th className="px-6 py-4">Fornecedor</th>
+                          <th className="px-6 py-4 text-center">Data</th>
+                          <th className="px-6 py-4 text-right">Base</th>
+                          <th className="px-6 py-4 text-right">Retenção</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredData.filter(i => i.totalWithholding > 0).map(row => (
+                          <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <p className="text-xs font-bold text-slate-800">{row.supplierName}</p>
+                              <p className="text-[10px] text-slate-500">{row.documentNumber}</p>
+                            </td>
+                            <td className="px-6 py-4 text-center text-[10px] font-bold text-slate-600">{row.date}</td>
+                            <td className="px-6 py-4 text-right text-xs font-medium">{row.totalTaxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
+                            <td className="px-6 py-4 text-right text-xs font-black text-amber-600">{row.totalWithholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-xl">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Total Retido no Período</p>
+                  <p className="text-3xl font-black text-amber-400 mb-6">{filteredTotals.withholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p>
+                  <div className="space-y-4">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-2">Top Fornecedores (Retenção)</p>
+                    {filteredTotals.withholdingBySupplier.slice(0, 5).map(s => (
+                      <div key={s.id} className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-300 truncate max-w-[150px]">{s.name}</span>
+                        <span className="text-xs font-black text-white">{s.amount.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     );
   }

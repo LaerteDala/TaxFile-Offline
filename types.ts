@@ -13,6 +13,12 @@ export interface DocumentType {
   name: string;
 }
 
+export interface WithholdingType {
+  id: string;
+  name: string;
+  rate: number;
+}
+
 export interface TaxLine {
   id: string;
   taxableValue: number;
@@ -21,6 +27,7 @@ export interface TaxLine {
   deductibleVat: number;
   isService: boolean;
   withholdingAmount: number;
+  withholdingTypeId?: string;
 }
 
 export interface Invoice {
@@ -41,7 +48,34 @@ export interface Invoice {
   totalDocument: number;
 }
 
-export type View = 'dashboard' | 'suppliers' | 'invoices' | 'reports' | 'inquiry' | 'document_types';
+export type CCDocumentType = 'LIQUIDACAO' | 'PAGAMENTO' | 'RECIBO';
+export type CCNature = 'PENDENTE' | 'LIQUIDACAO' | 'NENHUMA';
+
+export interface CCDocument {
+  id: string;
+  type: CCDocumentType;
+  nature: CCNature;
+  referenceNumber: string;
+  year: number;
+  period: string;
+  taxType: string;
+  relatedTax: string;
+  description: string;
+  taxableValue: number;
+  rate: number;
+  amountToPay: number;
+  interest: number;
+  fines: number;
+  totalAmount: number;
+  issueDate: string;
+  dueDate?: string;
+  receiptDate?: string;
+  attachmentPath?: string;
+  hasAttachment: boolean;
+  relatedDocumentId?: string;
+}
+
+export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings';
 
 declare global {
   interface Window {
@@ -59,6 +93,14 @@ declare global {
         addDocumentType: (docType: any) => Promise<any>;
         updateDocumentType: (docType: any) => Promise<any>;
         deleteDocumentType: (id: string) => Promise<any>;
+        getWithholdingTypes: () => Promise<WithholdingType[]>;
+        addWithholdingType: (wt: any) => Promise<any>;
+        updateWithholdingType: (wt: any) => Promise<any>;
+        deleteWithholdingType: (id: string) => Promise<any>;
+        getCCDocuments: () => Promise<CCDocument[]>;
+        addCCDocument: (doc: any) => Promise<any>;
+        updateCCDocument: (doc: any) => Promise<any>;
+        deleteCCDocument: (id: string) => Promise<any>;
       };
       fs: {
         saveFile: (fileName: string, buffer: ArrayBuffer) => Promise<string>;
