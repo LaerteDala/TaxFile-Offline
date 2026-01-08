@@ -99,6 +99,7 @@ export function initDb() {
 
         CREATE TABLE IF NOT EXISTS provinces (
             id TEXT PRIMARY KEY,
+            code TEXT,
             name TEXT NOT NULL UNIQUE,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -195,6 +196,9 @@ export function initDb() {
     if (!tableInfoTaxLines.some(col => col.name === 'liquidated_vat')) db.exec("ALTER TABLE tax_lines ADD COLUMN liquidated_vat REAL DEFAULT 0;");
     if (!tableInfoTaxLines.some(col => col.name === 'cative_vat')) db.exec("ALTER TABLE tax_lines ADD COLUMN cative_vat REAL DEFAULT 0;");
     if (!tableInfoTaxLines.some(col => col.name === 'withholding_type_id')) db.exec("ALTER TABLE tax_lines ADD COLUMN withholding_type_id TEXT;");
+
+    const tableInfoProvinces = db.prepare("PRAGMA table_info(provinces)").all();
+    if (!tableInfoProvinces.some(col => col.name === 'code')) db.exec("ALTER TABLE provinces ADD COLUMN code TEXT;");
 
     // Add default document types if none exist
     const docTypeCount = db.prepare('SELECT count(*) as count FROM document_types').get().count;

@@ -18,6 +18,7 @@ const Provinces: React.FC = () => {
     const [showCreator, setShowCreator] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [name, setName] = useState('');
+    const [code, setCode] = useState('');
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -46,11 +47,12 @@ const Provinces: React.FC = () => {
             }
 
             if (editingId) {
-                await window.electron.db.updateProvince({ id: editingId, name: name.trim() });
+                await window.electron.db.updateProvince({ id: editingId, code: code.trim(), name: name.trim() });
             } else {
-                await window.electron.db.addProvince({ id: crypto.randomUUID(), name: name.trim() });
+                await window.electron.db.addProvince({ id: crypto.randomUUID(), code: code.trim(), name: name.trim() });
             }
             setName('');
+            setCode('');
             setEditingId(null);
             setShowCreator(false);
             loadProvinces();
@@ -62,6 +64,7 @@ const Provinces: React.FC = () => {
     const handleEdit = (province: Province) => {
         setEditingId(province.id);
         setName(province.name);
+        setCode(province.code || '');
         setShowCreator(true);
     };
 
@@ -84,7 +87,7 @@ const Provinces: React.FC = () => {
                     <p className="text-sm text-slate-500 font-medium">Gestão de províncias de Angola</p>
                 </div>
                 <button
-                    onClick={() => { setShowCreator(true); setEditingId(null); setName(''); setError(null); }}
+                    onClick={() => { setShowCreator(true); setEditingId(null); setName(''); setCode(''); setError(null); }}
                     className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
                 >
                     <Plus size={20} />
@@ -95,6 +98,16 @@ const Provinces: React.FC = () => {
             {showCreator && (
                 <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm animate-in slide-in-from-top-4 duration-300">
                     <form onSubmit={handleSubmit} className="flex flex-col md:flex-row items-end gap-6">
+                        <div className="w-32 space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Código</label>
+                            <input
+                                type="text"
+                                value={code}
+                                onChange={(e) => setCode(e.target.value)}
+                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 transition-all"
+                                placeholder="Ex: LD"
+                            />
+                        </div>
                         <div className="flex-1 space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome da Província</label>
                             <input
@@ -149,6 +162,7 @@ const Provinces: React.FC = () => {
                     <table className="w-full text-left">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">Código</th>
                                 <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome</th>
                                 <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Acções</th>
                             </tr>
@@ -156,6 +170,9 @@ const Provinces: React.FC = () => {
                         <tbody className="divide-y divide-slate-100">
                             {filteredProvinces.map((p) => (
                                 <tr key={p.id} className="hover:bg-slate-50 transition-colors group">
+                                    <td className="px-8 py-5">
+                                        <p className="font-black text-blue-600">{p.code || '-'}</p>
+                                    </td>
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-3">
                                             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
@@ -184,7 +201,7 @@ const Provinces: React.FC = () => {
                             ))}
                             {filteredProvinces.length === 0 && (
                                 <tr>
-                                    <td colSpan={2} className="px-8 py-20 text-center text-slate-400 italic">Nenhuma província encontrada.</td>
+                                    <td colSpan={3} className="px-8 py-20 text-center text-slate-400 italic">Nenhuma província encontrada.</td>
                                 </tr>
                             )}
                         </tbody>

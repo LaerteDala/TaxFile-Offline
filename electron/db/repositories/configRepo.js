@@ -28,12 +28,12 @@ export const configRepo = {
     // Provinces
     getProvinces: () => db.prepare('SELECT * FROM provinces ORDER BY name').all(),
     addProvince: (province) => {
-        const stmt = db.prepare('INSERT INTO provinces (id, name) VALUES (?, ?)');
-        return stmt.run(province.id, province.name);
+        const stmt = db.prepare('INSERT INTO provinces (id, code, name) VALUES (?, ?, ?)');
+        return stmt.run(province.id, province.code, province.name);
     },
     updateProvince: (province) => {
-        const stmt = db.prepare('UPDATE provinces SET name = ? WHERE id = ?');
-        return stmt.run(province.name, province.id);
+        const stmt = db.prepare('UPDATE provinces SET code = ?, name = ? WHERE id = ?');
+        return stmt.run(province.code, province.name, province.id);
     },
     deleteProvince: (id) => db.prepare('DELETE FROM provinces WHERE id = ?').run(id),
 

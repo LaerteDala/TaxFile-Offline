@@ -15,6 +15,7 @@ export interface Supplier {
 
 export interface Province {
   id: string;
+  code?: string;
   name: string;
 }
 
