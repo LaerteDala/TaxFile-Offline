@@ -32,12 +32,20 @@ import {
   ArrowLeftRight,
   PieChart,
   MapPin,
-  Building2
+  Building2,
+  ShoppingBag,
+  ShoppingCart,
+  CreditCard,
+  Store
 } from 'lucide-react';
 import { View, Supplier, Client, Invoice, DocumentType, WithholdingType, CCDocument } from './types';
 import Dashboard from './components/Dashboard';
 import Suppliers from './components/Suppliers';
 import Clients from './components/Clients';
+import Sales from './components/Sales';
+import Purchases from './components/Purchases';
+import CommercialCC from './components/CommercialCC';
+import CompanySettings from './components/CompanySettings';
 import Invoices from './components/Invoices';
 import Reports from './components/Reports';
 import Inquiry from './components/Inquiry';
@@ -47,11 +55,15 @@ import CCOperations from './components/CC_Operations';
 import CCStatement from './components/CC_Statement';
 import CCReports from './components/CC_Reports';
 import IRTWithholdingMap from './components/IRT_WithholdingMap';
+import IRTWithheldValues from './components/IRT_WithheldValues';
 import IRTReports from './components/IRT_Reports';
 import IIWithholdingMap from './components/II_WithholdingMap';
+import IIWithheldValues from './components/II_WithheldValues';
 import IIReports from './components/II_Reports';
 import IPWithholdingMap from './components/IP_WithholdingMap';
+import IPWithheldValues from './components/IP_WithheldValues';
 import IPReports from './components/IP_Reports';
+import TaxIVA from './components/TaxIVA';
 import Provinces from './components/Provinces';
 import Municipalities from './components/Municipalities';
 
@@ -91,35 +103,7 @@ const App: React.FC = () => {
       setWithholdingTypes(wts || []);
 
       const invs = await window.electron.db.getInvoices();
-
-      const formattedInvoices: Invoice[] = (invs || []).map(i => ({
-        id: i.id,
-        orderNumber: i.order_number,
-        supplierId: i.supplier_id,
-        documentTypeId: i.document_type_id,
-        date: i.date,
-        documentNumber: i.document_number,
-        notes: i.notes,
-        hasPdf: !!i.has_pdf,
-        pdfPath: i.pdf_path,
-        lines: (i.tax_lines || []).map((l: any) => ({
-          id: l.id,
-          taxableValue: l.taxable_value,
-          rate: l.rate,
-          supportedVat: l.supported_vat,
-          deductibleVat: l.deductible_vat,
-          isService: !!l.is_service,
-          withholdingAmount: l.withholding_amount || 0,
-          withholdingTypeId: l.withholding_type_id
-        })),
-        totalTaxable: i.total_taxable,
-        totalSupported: i.total_supported,
-        totalDeductible: i.total_deductible,
-        totalWithholding: i.total_withholding || 0,
-        totalDocument: i.total_document
-      }));
-
-      setInvoices(formattedInvoices);
+      setInvoices(invs || []);
 
       const ccs = await window.electron.db.getCCDocuments();
       setCcDocuments(ccs || []);
@@ -176,6 +160,18 @@ const App: React.FC = () => {
     );
   };
 
+  const settingsMenu = {
+    name: 'Definições',
+    icon: SettingsIcon,
+    id: 'settings_menu',
+    subItems: [
+      { name: 'Entidade', icon: Building2, view: 'company_settings' as View },
+      { name: 'Geral', icon: SettingsIcon, view: 'settings' as View },
+      { name: 'Províncias', icon: MapPin, view: 'provinces' as View },
+      { name: 'Municípios', icon: Building2, view: 'municipalities' as View },
+    ]
+  };
+
   const navigation = [
     { name: 'Dashboard', icon: LayoutDashboard, view: 'dashboard' as View },
     { name: 'Consulta', icon: SearchCode, view: 'inquiry' as View },
@@ -191,7 +187,7 @@ const App: React.FC = () => {
       ]
     },
     {
-      name: 'Entidade',
+      name: 'Entidades',
       icon: Users,
       id: 'entidade',
       subItems: [
@@ -210,11 +206,22 @@ const App: React.FC = () => {
       ]
     },
     {
+      name: 'Comercial',
+      icon: Store,
+      id: 'comercial',
+      subItems: [
+        { name: 'Vendas', icon: ShoppingBag, view: 'sales' as View },
+        { name: 'Compras', icon: ShoppingCart, view: 'purchases' as View },
+        { name: 'Conta Corrente', icon: CreditCard, view: 'commercial_cc' as View },
+      ]
+    },
+    {
       name: 'I. Industrial',
       icon: Landmark,
       id: 'tax_ii',
       subItems: [
         { name: 'Mapa de Retenção', icon: FileSpreadsheet, view: 'ii_withholding_map' as View },
+        { name: 'Valores Retidos', icon: Coins, view: 'ii_withheld_values' as View },
         { name: 'Relatórios', icon: BarChart3, view: 'ii_reports' as View },
       ]
     },
@@ -225,31 +232,30 @@ const App: React.FC = () => {
       id: 'tax_irt',
       subItems: [
         { name: 'Mapa de Retenção', icon: FileSpreadsheet, view: 'irt_withholding_map' as View },
+        { name: 'Valores Retidos', icon: Coins, view: 'irt_withheld_values' as View },
         { name: 'Relatórios', icon: BarChart3, view: 'irt_reports' as View },
       ]
     },
-    { name: 'IV. Acrescentado', icon: FileSpreadsheet, view: 'tax_iva' as View },
+    {
+      name: 'IV. Acrescentado',
+      icon: FileSpreadsheet,
+      id: 'tax_iva',
+      subItems: [
+        { name: 'Consolidação do IVA', icon: FileSpreadsheet, view: 'tax_iva' as View },
+      ]
+    },
     {
       name: 'I. Predial',
       icon: Home,
       id: 'tax_ip',
       subItems: [
         { name: 'Mapa de Retenção', icon: FileSpreadsheet, view: 'ip_withholding_map' as View },
+        { name: 'Valores Retidos', icon: Coins, view: 'ip_withheld_values' as View },
         { name: 'Relatórios', icon: BarChart3, view: 'ip_reports' as View },
       ]
     },
     { name: 'IV. Motorizados', icon: Car, view: 'tax_ivm' as View },
     { name: 'IA. Capitais', icon: Banknote, view: 'tax_iac' as View },
-    {
-      name: 'Definições',
-      icon: SettingsIcon,
-      id: 'settings_menu',
-      subItems: [
-        { name: 'Geral', icon: SettingsIcon, view: 'settings' as View },
-        { name: 'Províncias', icon: MapPin, view: 'provinces' as View },
-        { name: 'Municípios', icon: Building2, view: 'municipalities' as View },
-      ]
-    },
   ];
 
   if (!session && !isLoading) {
@@ -332,7 +338,47 @@ const App: React.FC = () => {
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-slate-800 space-y-2">
+          {(() => {
+            const item = settingsMenu;
+            const isExpanded = expandedMenus.includes(item.id!);
+            const isChildActive = item.subItems.some(sub => sub.view === currentView);
+
+            return (
+              <div key={item.id} className="space-y-1">
+                <button
+                  onClick={() => toggleMenu(item.id!)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${isChildActive ? 'text-white bg-slate-800/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                    }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <item.icon size={20} />
+                    {isSidebarOpen && <span className="font-bold text-sm">{item.name}</span>}
+                  </div>
+                  {isSidebarOpen && (isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+                </button>
+
+                {isExpanded && isSidebarOpen && (
+                  <div className="ml-4 pl-4 border-l border-slate-800 space-y-1 animate-in slide-in-from-left-2 duration-200">
+                    {item.subItems.map((sub) => (
+                      <button
+                        key={sub.view}
+                        onClick={() => setCurrentView(sub.view)}
+                        className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-bold transition-all ${currentView === sub.view
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                          : 'text-slate-500 hover:text-white hover:bg-slate-800'
+                          }`}
+                      >
+                        <sub.icon size={16} />
+                        <span>{sub.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-4 px-4 py-3 text-slate-400 hover:text-white rounded-xl transition-colors"
@@ -348,7 +394,17 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
             <button onClick={toggleSidebar} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"><Menu size={20} /></button>
             <h1 className="text-xl font-semibold capitalize text-slate-800">
-              {navigation.find(n => n.view === currentView)?.name}
+              {(() => {
+                const allItems = [...navigation, settingsMenu];
+                for (const item of allItems) {
+                  if ('view' in item && item.view === currentView) return item.name;
+                  if (item.subItems) {
+                    const sub = item.subItems.find(s => s.view === currentView);
+                    if (sub) return sub.name;
+                  }
+                }
+                return '';
+              })()}
             </h1>
           </div>
 
@@ -381,19 +437,24 @@ const App: React.FC = () => {
             )}
             {currentView === 'suppliers' && <Suppliers suppliers={suppliers} setSuppliers={setSuppliers} setInvoices={setInvoices} />}
             {currentView === 'clients' && <Clients clients={clients} setClients={setClients} />}
+            {currentView === 'sales' && <Sales />}
+            {currentView === 'purchases' && <Purchases />}
+            {currentView === 'commercial_cc' && <CommercialCC />}
+            {currentView === 'company_settings' && <CompanySettings />}
             {currentView === 'invoices' && (
               <Invoices
                 invoices={invoices}
                 setInvoices={setInvoices}
                 suppliers={suppliers}
+                clients={clients}
                 documentTypes={documentTypes}
                 withholdingTypes={withholdingTypes}
                 initialInvoice={selectedInvoice}
                 onClose={() => setSelectedInvoice(null)}
               />
             )}
-            {currentView === 'inquiry' && <Inquiry invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} documentTypes={documentTypes} withholdingTypes={withholdingTypes} />}
-            {currentView === 'reports' && <Reports invoices={invoices} suppliers={suppliers} documentTypes={documentTypes} withholdingTypes={withholdingTypes} />}
+            {currentView === 'inquiry' && <Inquiry invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} clients={clients} documentTypes={documentTypes} withholdingTypes={withholdingTypes} />}
+            {currentView === 'reports' && <Reports invoices={invoices} suppliers={suppliers} clients={clients} documentTypes={documentTypes} withholdingTypes={withholdingTypes} />}
             {currentView === 'cc_operations' && (
               <CCOperations
                 documents={ccDocuments}
@@ -449,6 +510,9 @@ const App: React.FC = () => {
                 }}
               />
             )}
+            {currentView === 'ii_withheld_values' && <IIWithheldValues invoices={invoices} clients={clients} withholdingTypes={withholdingTypes} />}
+            {currentView === 'irt_withheld_values' && <IRTWithheldValues invoices={invoices} clients={clients} withholdingTypes={withholdingTypes} />}
+            {currentView === 'ip_withheld_values' && <IPWithheldValues invoices={invoices} clients={clients} withholdingTypes={withholdingTypes} />}
             {currentView === 'ip_reports' && <IPReports invoices={invoices} withholdingTypes={withholdingTypes} />}
             {currentView === 'provinces' && <Provinces />}
             {currentView === 'municipalities' && <Municipalities />}
@@ -460,7 +524,16 @@ const App: React.FC = () => {
                 setWithholdingTypes={setWithholdingTypes}
               />
             )}
-            {['tax_is', 'tax_iva', 'tax_ivm', 'tax_iac', 'clients', 'staff', 'contracts'].includes(currentView) && (
+            {currentView === 'tax_iva' && (
+              <TaxIVA
+                invoices={invoices}
+                suppliers={suppliers}
+                clients={clients}
+                documentTypes={documentTypes}
+                withholdingTypes={withholdingTypes}
+              />
+            )}
+            {['tax_is', 'tax_ivm', 'tax_iac', 'clients', 'staff', 'contracts'].includes(currentView) && (
               <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
                 <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
                   {React.createElement(

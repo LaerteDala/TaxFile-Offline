@@ -11,16 +11,17 @@ import {
   ArrowUpRight,
   Printer
 } from 'lucide-react';
-import { Invoice, Supplier, DocumentType, WithholdingType } from '../types';
+import { Invoice, Supplier, Client, DocumentType, WithholdingType } from '../types';
 
 interface ReportsProps {
   invoices: Invoice[];
   suppliers: Supplier[];
+  clients: Client[];
   documentTypes: DocumentType[];
   withholdingTypes: WithholdingType[];
 }
 
-const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes, withholdingTypes }) => {
+const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, clients, documentTypes, withholdingTypes }) => {
   const [showPreview, setShowPreview] = useState(false);
   const [reportMode, setReportMode] = useState<'iva' | 'withholding'>('iva');
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,30 +33,32 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes, w
   const filteredData = useMemo(() => {
     return invoices.filter(inv => {
       const supplier = suppliers.find(s => s.id === inv.supplierId);
+      const client = clients.find(c => c.id === inv.clientId);
       const docNum = (inv.documentNumber || "").toLowerCase();
-      const supName = (supplier?.name || "").toLowerCase();
+      const entityName = inv.type === 'PURCHASE' ? (supplier?.name || "").toLowerCase() : (client?.name || "").toLowerCase();
       const term = searchTerm.toLowerCase();
 
-      const matchesSearch = docNum.includes(term) || supName.includes(term);
+      const matchesSearch = docNum.includes(term) || entityName.includes(term);
 
       const matchesDate =
         (!startDate || inv.date >= startDate) &&
         (!endDate || inv.date <= endDate);
 
-      const matchesSupplier = !filterSupplier || inv.supplierId === filterSupplier;
+      const matchesSupplier = !filterSupplier || inv.supplierId === filterSupplier || inv.clientId === filterSupplier;
 
       return matchesSearch && matchesDate && matchesSupplier;
     }).map(inv => {
       const supplier = suppliers.find(s => s.id === inv.supplierId);
+      const client = clients.find(c => c.id === inv.clientId);
       const docType = documentTypes.find(dt => dt.id === inv.documentTypeId);
       return {
         ...inv,
-        supplierName: supplier?.name || 'N/A',
-        nif: supplier?.nif || 'N/A',
-        documentTypeCode: docType?.code || '---'
+        supplierName: inv.type === 'PURCHASE' ? (supplier?.name || 'N/A') : (client?.name || 'N/A'),
+        nif: inv.type === 'PURCHASE' ? (supplier?.nif || '---') : (client?.nif || '---'),
+        docTypeCode: docType?.code || '---'
       };
     });
-  }, [invoices, suppliers, documentTypes, searchTerm, startDate, endDate, filterSupplier]);
+  }, [invoices, suppliers, clients, searchTerm, startDate, endDate, filterSupplier, documentTypes]);
 
   // Totals for the filtered set
   const filteredTotals = useMemo(() => {
@@ -94,10 +97,10 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes, w
     let headers, rows, filename;
 
     if (reportMode === 'iva') {
-      headers = ["Nº Ordem", "Tipo", "Fornecedor", "NIF", "Data", "Doc#", "Total Documento", "Total Tributável", "Total Suportado", "Total Dedutível", "Retenção", "Notas"];
+      headers = ["Nº Ordem", "Tipo", "Entidade", "NIF", "Data", "Doc#", "Total Documento", "Total Tributável", "Total Suportado", "Total Dedutível", "Retenção", "Notas"];
       rows = filteredData.map(row => [
         row.orderNumber,
-        `"${row.documentTypeCode}"`,
+        `"${row.docTypeCode}"`,
         `"${row.supplierName}"`,
         `"${row.nif}"`,
         row.date,
@@ -234,14 +237,24 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes, w
                 />
               </div>
             </div>
-
+          </div>
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
+            <label className="flex items-center gap-2 text-sm font-black text-slate-700 uppercase tracking-wider">
+              <Filter size={16} className="text-blue-600" />
+              Entidade
+            </label>
             <select
               value={filterSupplier}
               onChange={(e) => setFilterSupplier(e.target.value)}
-              className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none text-slate-900"
+              className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 appearance-none"
             >
-              <option value="">Todos Fornecedores</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              <option value="">Todas as Entidades...</option>
+              <optgroup label="Fornecedores">
+                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </optgroup>
+              <optgroup label="Clientes">
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </optgroup>
             </select>
           </div>
         </div>
@@ -283,12 +296,12 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes, w
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ord</th>
                       <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fornecedor</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Entidade</th>
                       <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Data</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Documento</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Dedutível</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Doc#</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Tributável</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">IVA</th>
                       <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Retenção</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -298,7 +311,7 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes, w
                           <span className="text-xs font-bold text-slate-400 group-hover:text-blue-500 transition-colors">#{row.orderNumber}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-black font-mono">{row.documentTypeCode}</span>
+                          <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-black font-mono">{row.docTypeCode}</span>
                         </td>
                         <td className="px-6 py-4">
                           <p className="text-sm font-bold text-slate-800">{row.supplierName}</p>
@@ -311,13 +324,13 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes, w
                           <span className="px-2 py-1 bg-slate-100 rounded text-[10px] font-mono font-black text-slate-500">{row.documentNumber}</span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <span className="text-sm font-bold text-emerald-600">{row.totalDeductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
+                          <span className="text-sm font-bold text-slate-900">{row.totalTaxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-sm font-bold text-emerald-600">{row.totalSupported.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
                         </td>
                         <td className="px-6 py-4 text-right">
                           <span className="text-sm font-bold text-amber-600">{row.totalWithholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="text-sm font-black text-slate-900">{row.totalDocument.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
                         </td>
                       </tr>
                     ))}
@@ -376,15 +389,18 @@ const Reports: React.FC<ReportsProps> = ({ invoices, suppliers, documentTypes, w
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {filteredData.filter(i => i.totalWithholding > 0).map(row => (
-                          <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                        {filteredData.filter(i => i.totalWithholding > 0).map(inv => (
+                          <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-6 py-4">
-                              <p className="text-xs font-bold text-slate-800">{row.supplierName}</p>
-                              <p className="text-[10px] text-slate-500">{row.documentNumber}</p>
+                              <p className="text-xs font-bold text-slate-800">{inv.supplierName}</p>
+                              <p className="text-[10px] text-slate-500">{inv.documentNumber}</p>
                             </td>
-                            <td className="px-6 py-4 text-center text-[10px] font-bold text-slate-600">{row.date}</td>
-                            <td className="px-6 py-4 text-right text-xs font-medium">{row.totalTaxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
-                            <td className="px-6 py-4 text-right text-xs font-black text-amber-600">{row.totalWithholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
+                            <td className="px-6 py-4 text-center text-[10px] font-bold text-slate-600">{inv.date}</td>
+                            <td className="px-6 py-4 text-right text-xs font-medium">{inv.totalTaxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
+                            <td className="px-6 py-4 text-right font-bold text-slate-900">
+                              {(inv.type === 'PURCHASE' ? inv.totalSupported : inv.totalLiquidated).toLocaleString('pt-AO', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-6 py-4 text-right text-xs font-black text-amber-600">{inv.totalWithholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</td>
                           </tr>
                         ))}
                       </tbody>

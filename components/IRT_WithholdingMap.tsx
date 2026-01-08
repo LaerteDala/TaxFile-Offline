@@ -30,6 +30,7 @@ const IRTWithholdingMap: React.FC<IRTWithholdingMapProps> = ({ invoices, supplie
         if (!irtGrupoBType) return [];
 
         return invoices.filter(inv => {
+            if (inv.type !== 'PURCHASE') return false;
             const hasIRT = inv.lines.some(line => line.withholdingTypeId === irtGrupoBType.id);
             if (!hasIRT) return false;
 

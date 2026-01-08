@@ -30,6 +30,7 @@ const IPWithholdingMap: React.FC<IPWithholdingMapProps> = ({ invoices, suppliers
         if (!ipType) return [];
 
         return invoices.filter(inv => {
+            if (inv.type !== 'PURCHASE') return false;
             const hasIP = inv.lines.some(line => line.withholdingTypeId === ipType.id);
             if (!hasIP) return false;
 

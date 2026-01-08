@@ -5,19 +5,20 @@ import {
   FileCheck2, Calendar, Layers, Loader2, X, Building2, Hash, FileText,
   Eye, Edit3, Save, Download, FileX2, CheckSquare, Square
 } from 'lucide-react';
-import { Invoice, Supplier, TaxLine, DocumentType, WithholdingType } from '../types';
+import { Invoice, Supplier, Client, TaxLine, DocumentType, WithholdingType, CompanyInfo } from '../types';
 
 interface InvoicesProps {
   invoices: Invoice[];
   setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>;
   suppliers: Supplier[];
+  clients: Client[];
   documentTypes: DocumentType[];
   withholdingTypes: WithholdingType[];
   initialInvoice?: Invoice | null;
   onClose?: () => void;
 }
 
-const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, documentTypes, withholdingTypes, initialInvoice, onClose }) => {
+const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, clients, documentTypes, withholdingTypes, initialInvoice, onClose }) => {
   const [showCreator, setShowCreator] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,16 +27,23 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
+  const [invoiceType, setInvoiceType] = useState<'PURCHASE' | 'SALE'>('PURCHASE');
   const [supplierId, setSupplierId] = useState('');
+  const [clientId, setClientId] = useState('');
   const [documentTypeId, setDocumentTypeId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [docNumber, setDocNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [taxLines, setTaxLines] = useState<TaxLine[]>([
-    { id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, isService: false, withholdingAmount: 0 }
+    { id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, liquidatedVat: 0, cativeVat: 0, isService: false, withholdingAmount: 0 }
   ]);
   const [formError, setFormError] = useState<string | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+
+  React.useEffect(() => {
+    window.electron.db.getCompanyInfo().then(setCompanyInfo);
+  }, []);
 
   React.useEffect(() => {
     if (initialInvoice) {
@@ -43,18 +51,40 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
     }
   }, [initialInvoice]);
 
+  // Recalculate cative VAT for all lines when client or invoice type changes
+  React.useEffect(() => {
+    if (invoiceType === 'SALE' && clientId) {
+      const client = clients.find(c => c.id === clientId);
+      const cativeRate = client?.cativeVatRate ?? 0;
+      setTaxLines(prev => prev.map(line => ({
+        ...line,
+        cativeVat: Number((line.liquidatedVat * (cativeRate / 100)).toFixed(2))
+      })));
+    } else if (invoiceType === 'PURCHASE') {
+      setTaxLines(prev => prev.map(line => ({
+        ...line,
+        liquidatedVat: 0,
+        cativeVat: 0,
+        supportedVat: Number((line.taxableValue * (line.rate / 100)).toFixed(2)),
+        deductibleVat: Number((line.taxableValue * (line.rate / 100)).toFixed(2))
+      })));
+    }
+  }, [clientId, invoiceType, clients]);
+
   const totals = useMemo(() => {
     return taxLines.reduce((acc, line) => ({
       taxable: acc.taxable + line.taxableValue,
       supported: acc.supported + line.supportedVat,
       deductible: acc.deductible + line.deductibleVat,
+      liquidated: acc.liquidated + line.liquidatedVat,
+      cative: acc.cative + line.cativeVat,
       withholding: acc.withholding + line.withholdingAmount,
-      document: acc.document + line.taxableValue + line.supportedVat - line.withholdingAmount
-    }), { taxable: 0, supported: 0, deductible: 0, withholding: 0, document: 0 });
-  }, [taxLines]);
+      document: acc.document + line.taxableValue + (invoiceType === 'PURCHASE' ? line.supportedVat : line.liquidatedVat) - line.withholdingAmount
+    }), { taxable: 0, supported: 0, deductible: 0, liquidated: 0, cative: 0, withholding: 0, document: 0 });
+  }, [taxLines, invoiceType]);
 
   const addLine = () => {
-    setTaxLines([...taxLines, { id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, isService: false, withholdingAmount: 0 }]);
+    setTaxLines([...taxLines, { id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, liquidatedVat: 0, cativeVat: 0, isService: false, withholdingAmount: 0 }]);
   };
 
   const updateLine = (id: string, field: keyof TaxLine, value: any) => {
@@ -64,17 +94,42 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
 
         // Recalculate VAT
         if (field === 'taxableValue' || field === 'rate') {
-          updated.supportedVat = Number((updated.taxableValue * (updated.rate / 100)).toFixed(2));
-          updated.deductibleVat = updated.supportedVat;
+          const vat = Number((updated.taxableValue * (updated.rate / 100)).toFixed(2));
+          if (invoiceType === 'PURCHASE') {
+            updated.supportedVat = vat;
+            updated.deductibleVat = vat;
+            updated.liquidatedVat = 0;
+            updated.cativeVat = 0;
+          } else {
+            updated.liquidatedVat = vat;
+
+            // Calculate Cative VAT based on client's rate
+            const client = clients.find(c => c.id === clientId);
+            const cativeRate = client?.cativeVatRate ?? 0;
+            updated.cativeVat = Number((vat * (cativeRate / 100)).toFixed(2));
+
+            updated.supportedVat = 0;
+            updated.deductibleVat = 0;
+          }
         }
 
         // Recalculate Withholding
         if (field === 'taxableValue' || field === 'withholdingTypeId' || field === 'isService') {
-          if (updated.isService && updated.withholdingTypeId) {
-            const wt = withholdingTypes.find(t => t.id === updated.withholdingTypeId);
-            const wtRate = wt ? wt.rate : 6.5; // Default to 6.5 if not found
+          if (updated.isService) {
+            let wtRate = 6.5; // Default for II, IRT B, IRT C
+
+            if (updated.withholdingTypeId) {
+              const wt = withholdingTypes.find(t => t.id === updated.withholdingTypeId);
+              if (wt) {
+                wtRate = wt.rate;
+              }
+            } else if (invoiceType === 'SALE') {
+              // For Sales, if no specific type selected, use default 6.5% or 15% for Rent
+              // We'll assume the user selects the type if it's Rent
+            }
+
             updated.withholdingAmount = Number((updated.taxableValue * (wtRate / 100)).toFixed(2));
-          } else if (!updated.isService) {
+          } else {
             updated.withholdingAmount = 0;
             updated.withholdingTypeId = undefined;
           }
@@ -137,7 +192,9 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
 
       const invoiceData = {
         id: editingInvoice?.id || crypto.randomUUID(),
-        supplierId,
+        type: invoiceType,
+        supplierId: invoiceType === 'PURCHASE' ? supplierId : undefined,
+        clientId: invoiceType === 'SALE' ? clientId : undefined,
         documentTypeId,
         date,
         documentNumber: docNumber,
@@ -147,6 +204,8 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
         totalTaxable: totals.taxable,
         totalSupported: totals.supported,
         totalDeductible: totals.deductible,
+        totalLiquidated: totals.liquidated,
+        totalCative: totals.cative,
         totalWithholding: totals.withholding,
         totalDocument: totals.document
       };
@@ -160,7 +219,9 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
       const finalInvoice: Invoice = {
         ...invoiceData,
         orderNumber: editingInvoice?.orderNumber || (invoices.length > 0 ? Math.max(...invoices.map(i => i.orderNumber)) + 1 : 1),
-        lines: taxLines
+        lines: taxLines,
+        totalLiquidated: totals.liquidated,
+        totalCative: totals.cative
       };
 
       if (editingInvoice) {
@@ -181,12 +242,14 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
 
   const resetForm = () => {
     setEditingInvoice(null);
+    setInvoiceType('PURCHASE');
     setSupplierId('');
+    setClientId('');
     setDocumentTypeId('');
     setDocNumber('');
     setNotes('');
     setSelectedFile(null);
-    setTaxLines([{ id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, isService: false, withholdingAmount: 0 }]);
+    setTaxLines([{ id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, liquidatedVat: 0, cativeVat: 0, isService: false, withholdingAmount: 0 }]);
   };
 
   const handleDownload = async (invoice: Invoice) => {
@@ -223,38 +286,69 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Building2 size={12} className="text-blue-600" /> FORNECEDOR
-                </label>
-                <select
-                  required
-                  value={supplierId}
-                  onChange={(e) => setSupplierId(e.target.value)}
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all appearance-none"
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Invoice Type Toggle */}
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
+              <label className="flex items-center gap-2 text-sm font-black text-slate-700 uppercase tracking-wider">
+                <Layers size={16} className="text-blue-600" />
+                Tipo de Factura
+              </label>
+              <div className="flex p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setInvoiceType('PURCHASE')}
+                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all ${invoiceType === 'PURCHASE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                  <option value="">Seleccionar Empresa...</option>
-                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name} ({s.nif})</option>)}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <FileText size={12} className="text-blue-600" /> TIPO DE DOCUMENTO
-                </label>
-                <select
-                  required
-                  value={documentTypeId}
-                  onChange={(e) => setDocumentTypeId(e.target.value)}
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all appearance-none"
+                  Compra
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInvoiceType('SALE')}
+                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all ${invoiceType === 'SALE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                  <option value="">Seleccionar Tipo...</option>
-                  {documentTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.code} - {dt.name}</option>)}
-                </select>
+                  Venda
+                </button>
               </div>
             </div>
 
+            {/* Entity Selector (Supplier or Client) */}
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
+              <label className="flex items-center gap-2 text-sm font-black text-slate-700 uppercase tracking-wider">
+                <Building2 size={16} className="text-blue-600" />
+                {invoiceType === 'PURCHASE' ? 'Fornecedor' : 'Cliente'}
+              </label>
+              <select
+                value={invoiceType === 'PURCHASE' ? supplierId : clientId}
+                onChange={(e) => invoiceType === 'PURCHASE' ? setSupplierId(e.target.value) : setClientId(e.target.value)}
+                className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 appearance-none"
+                required
+              >
+                <option value="">Seleccione o {invoiceType === 'PURCHASE' ? 'fornecedor' : 'cliente'}...</option>
+                {invoiceType === 'PURCHASE'
+                  ? suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
+                  : clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                }
+              </select>
+            </div>
+
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
+              <label className="flex items-center gap-2 text-sm font-black text-slate-700 uppercase tracking-wider">
+                <FileCheck2 size={16} className="text-blue-600" />
+                Tipo de Documento
+              </label>
+              <select
+                required
+                value={documentTypeId}
+                onChange={(e) => setDocumentTypeId(e.target.value)}
+                className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 appearance-none"
+              >
+                <option value="">Seleccionar Tipo...</option>
+                {documentTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.code} - {dt.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -307,7 +401,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col h-full">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col h-full lg:col-span-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">NOTAS ADICIONAIS</label>
               <textarea
                 value={notes}
@@ -335,8 +429,8 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Serviço?</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Tributável</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Taxa (%)</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">IVA Suportado</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">IVA Dedutível</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{invoiceType === 'PURCHASE' ? 'IVA Suportado' : 'IVA Liquidado'}</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{invoiceType === 'PURCHASE' ? 'IVA Dedutível' : 'IVA Cativo'}</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Retenção</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Retenção</th>
                     <th className="px-8 py-4 w-20"></th>
@@ -379,16 +473,13 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
                       </td>
                       <td className="px-8 py-4">
                         <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 font-black text-slate-800 text-center text-xs">
-                          {l.supportedVat.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}
+                          {(invoiceType === 'PURCHASE' ? l.supportedVat : l.liquidatedVat).toLocaleString('pt-AO', { minimumFractionDigits: 2 })}
                         </div>
                       </td>
                       <td className="px-8 py-4">
-                        <input
-                          type="number" step="0.01" value={l.deductibleVat || ''}
-                          onChange={(e) => updateLine(l.id, 'deductibleVat', parseFloat(e.target.value) || 0)}
-                          className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 text-center text-xs"
-                          placeholder="0,00"
-                        />
+                        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 font-black text-slate-800 text-center text-xs">
+                          {(invoiceType === 'PURCHASE' ? l.deductibleVat : l.cativeVat).toLocaleString('pt-AO', { minimumFractionDigits: 2 })}
+                        </div>
                       </td>
                       <td className="px-8 py-4">
                         <select
@@ -398,7 +489,14 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
                           className={`w-full p-3.5 border rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none text-xs ${!l.isService ? 'bg-slate-50 border-slate-100 text-slate-300' : 'bg-white border-slate-200 text-slate-900'}`}
                         >
                           <option value="">Seleccionar...</option>
-                          {withholdingTypes.map(wt => <option key={wt.id} value={wt.id}>{wt.name} ({wt.rate}%)</option>)}
+                          {withholdingTypes
+                            .filter(wt => {
+                              if (invoiceType === 'PURCHASE') return true;
+                              // For sales, only show company's service regime and Imposto Predial
+                              return wt.name === companyInfo?.serviceRegime || wt.name === 'Imposto Predial';
+                            })
+                            .map(wt => <option key={wt.id} value={wt.id}>{wt.name} ({wt.rate}%)</option>)
+                          }
                         </select>
                       </td>
                       <td className="px-8 py-4">
@@ -419,8 +517,8 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
 
             <div className="bg-[#0f172a] p-10 px-12 grid grid-cols-2 lg:grid-cols-5 gap-8">
               <div className="space-y-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">TOTAL TRIBUTÁVEL</p><p className="text-xl font-black text-white">{totals.taxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
-              <div className="space-y-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">TOTAL IVA SUPORTADO</p><p className="text-xl font-black text-white">{totals.supported.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
-              <div className="space-y-1"><p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">TOTAL IVA DEDUTÍVEL</p><p className="text-xl font-black text-emerald-400">{totals.deductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
+              <div className="space-y-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{invoiceType === 'PURCHASE' ? 'TOTAL IVA SUPORTADO' : 'TOTAL IVA LIQUIDADO'}</p><p className="text-xl font-black text-white">{(invoiceType === 'PURCHASE' ? totals.supported : totals.liquidated).toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
+              <div className="space-y-1"><p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{invoiceType === 'PURCHASE' ? 'TOTAL IVA DEDUTÍVEL' : 'TOTAL IVA CATIVO'}</p><p className="text-xl font-black text-emerald-400">{(invoiceType === 'PURCHASE' ? totals.deductible : totals.cative).toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
               <div className="space-y-1"><p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">TOTAL RETENÇÃO</p><p className="text-xl font-black text-amber-400">{totals.withholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
               <div className="space-y-1 border-l border-slate-800 pl-8"><p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">TOTAL DO DOCUMENTO</p><p className="text-2xl font-black text-blue-500">{totals.document.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
             </div>
@@ -475,8 +573,11 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
             <tbody className="divide-y divide-slate-100">
               {invoices.filter(i => {
                 const s = suppliers.find(sup => sup.id === i.supplierId);
+                const c = clients.find(cl => cl.id === i.clientId);
                 const term = searchTerm.toLowerCase();
-                return (i.documentNumber || "").toLowerCase().includes(term) || (s?.name || "").toLowerCase().includes(term);
+                return (i.documentNumber || "").toLowerCase().includes(term) ||
+                  (s?.name || "").toLowerCase().includes(term) ||
+                  (c?.name || "").toLowerCase().includes(term);
               }).map(i => (
                 <tr key={i.id} className="hover:bg-blue-50/30 transition-colors group cursor-default">
                   <td className="px-8 py-5"><span className="text-xs font-black text-slate-300 group-hover:text-blue-500 transition-colors">#{i.orderNumber}</span></td>
@@ -486,8 +587,18 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, d
                     </span>
                   </td>
                   <td className="px-8 py-5">
-                    <p className="font-bold text-slate-800 text-base">{suppliers.find(s => s.id === i.supplierId)?.name || 'N/A'}</p>
-                    <p className="text-[10px] font-medium text-slate-500 uppercase tracking-tighter">NIF: {suppliers.find(s => s.id === i.supplierId)?.nif || '---'}</p>
+                    <p className="font-bold text-slate-800 text-base">
+                      {i.type === 'PURCHASE'
+                        ? (suppliers.find(s => s.id === i.supplierId)?.name || 'N/A')
+                        : (clients.find(c => c.id === i.clientId)?.name || 'N/A')
+                      }
+                    </p>
+                    <p className="text-[10px] font-medium text-slate-500 uppercase tracking-tighter">
+                      NIF: {i.type === 'PURCHASE'
+                        ? (suppliers.find(s => s.id === i.supplierId)?.nif || '---')
+                        : (clients.find(c => c.id === i.clientId)?.nif || '---')
+                      }
+                    </p>
                   </td>
                   <td className="px-8 py-5 text-center"><span className="text-sm font-semibold text-slate-600">{i.date}</span></td>
                   <td className="px-8 py-5 text-center"><span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-mono font-black border border-slate-200 group-hover:bg-white transition-colors">{i.documentNumber}</span></td>

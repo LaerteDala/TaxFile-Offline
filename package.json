@@ -58,7 +58,10 @@
       "electron/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": [
+        "nsis",
+        "portable"
+      ]
     }
   }
 }

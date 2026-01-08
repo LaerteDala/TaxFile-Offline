@@ -21,6 +21,11 @@ export function initDb() {
             nif TEXT,
             address TEXT,
             email TEXT,
+            in_angola INTEGER DEFAULT 1,
+            iva_regime TEXT DEFAULT 'Geral',
+            province_id TEXT,
+            municipality_id TEXT,
+            conformity_declaration_number TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -33,21 +38,19 @@ export function initDb() {
 
         CREATE TABLE IF NOT EXISTS invoices (
             id TEXT PRIMARY KEY,
+            type TEXT DEFAULT 'PURCHASE',
             order_number INTEGER,
             supplier_id TEXT,
+            client_id TEXT,
             document_type_id TEXT,
             date TEXT,
             document_number TEXT,
             notes TEXT,
             has_pdf INTEGER DEFAULT 0,
             pdf_path TEXT,
-            total_taxable REAL DEFAULT 0,
-            total_supported REAL DEFAULT 0,
-            total_deductible REAL DEFAULT 0,
-            total_withholding REAL DEFAULT 0,
-            total_document REAL DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
             FOREIGN KEY (document_type_id) REFERENCES document_types(id) ON DELETE SET NULL
         );
 
@@ -58,8 +61,11 @@ export function initDb() {
             rate REAL DEFAULT 0,
             supported_vat REAL DEFAULT 0,
             deductible_vat REAL DEFAULT 0,
+            liquidated_vat REAL DEFAULT 0,
+            cative_vat REAL DEFAULT 0,
             is_service INTEGER DEFAULT 0,
             withholding_amount REAL DEFAULT 0,
+            withholding_type_id TEXT,
             FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
         );
 
@@ -139,6 +145,7 @@ export function initDb() {
             municipality_id TEXT,
             conformity_declaration_number TEXT,
             type TEXT DEFAULT 'Normal',
+            cative_vat_rate REAL DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -150,51 +157,56 @@ export function initDb() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS company_info (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            nif TEXT,
+            address TEXT,
+            location TEXT,
+            province_id TEXT,
+            municipality_id TEXT,
+            email TEXT,
+            website TEXT,
+            turnover REAL DEFAULT 0,
+            iva_regime TEXT DEFAULT 'Geral',
+            service_regime TEXT DEFAULT 'Imposto Industrial',
+            has_stamp_duty INTEGER DEFAULT 0,
+            stamp_duty_rate REAL DEFAULT 0,
+            logo_path TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS company_attachments (
+            id TEXT PRIMARY KEY,
+            company_id TEXT,
+            title TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (company_id) REFERENCES company_info(id) ON DELETE CASCADE
+        );
     `);
 
     // Migrations: Add columns if they don't exist
     const tableInfoSuppliers = db.prepare("PRAGMA table_info(suppliers)").all();
-    const hasInAngola = tableInfoSuppliers.some(col => col.name === 'in_angola');
-    const hasIvaRegime = tableInfoSuppliers.some(col => col.name === 'iva_regime');
-    const hasProvinceId = tableInfoSuppliers.some(col => col.name === 'province_id');
-    const hasMunicipalityId = tableInfoSuppliers.some(col => col.name === 'municipality_id');
-    const hasConformityNumber = tableInfoSuppliers.some(col => col.name === 'conformity_declaration_number');
-
-    if (!hasInAngola) db.exec("ALTER TABLE suppliers ADD COLUMN in_angola INTEGER DEFAULT 1;");
-    if (!hasIvaRegime) db.exec("ALTER TABLE suppliers ADD COLUMN iva_regime TEXT DEFAULT 'Geral';");
-    if (!hasProvinceId) db.exec("ALTER TABLE suppliers ADD COLUMN province_id TEXT;");
-    if (!hasMunicipalityId) db.exec("ALTER TABLE suppliers ADD COLUMN municipality_id TEXT;");
-    if (!hasConformityNumber) db.exec("ALTER TABLE suppliers ADD COLUMN conformity_declaration_number TEXT;");
+    if (!tableInfoSuppliers.some(col => col.name === 'in_angola')) db.exec("ALTER TABLE suppliers ADD COLUMN in_angola INTEGER DEFAULT 1;");
+    if (!tableInfoSuppliers.some(col => col.name === 'iva_regime')) db.exec("ALTER TABLE suppliers ADD COLUMN iva_regime TEXT DEFAULT 'Geral';");
+    if (!tableInfoSuppliers.some(col => col.name === 'province_id')) db.exec("ALTER TABLE suppliers ADD COLUMN province_id TEXT;");
+    if (!tableInfoSuppliers.some(col => col.name === 'municipality_id')) db.exec("ALTER TABLE suppliers ADD COLUMN municipality_id TEXT;");
+    if (!tableInfoSuppliers.some(col => col.name === 'conformity_declaration_number')) db.exec("ALTER TABLE suppliers ADD COLUMN conformity_declaration_number TEXT;");
 
     const tableInfoClients = db.prepare("PRAGMA table_info(clients)").all();
-    const hasClientType = tableInfoClients.some(col => col.name === 'type');
-    if (!hasClientType) db.exec("ALTER TABLE clients ADD COLUMN type TEXT DEFAULT 'Normal';");
+    if (!tableInfoClients.some(col => col.name === 'type')) db.exec("ALTER TABLE clients ADD COLUMN type TEXT DEFAULT 'Normal';");
+    if (!tableInfoClients.some(col => col.name === 'cative_vat_rate')) db.exec("ALTER TABLE clients ADD COLUMN cative_vat_rate REAL DEFAULT 0;");
 
     const tableInfoInvoices = db.prepare("PRAGMA table_info(invoices)").all();
-    const hasDocTypeId = tableInfoInvoices.some(col => col.name === 'document_type_id');
-    const hasTotalWithholding = tableInfoInvoices.some(col => col.name === 'total_withholding');
-
-    if (!hasDocTypeId) {
-        db.exec("ALTER TABLE invoices ADD COLUMN document_type_id TEXT;");
-    }
-    if (!hasTotalWithholding) {
-        db.exec("ALTER TABLE invoices ADD COLUMN total_withholding REAL DEFAULT 0;");
-    }
+    if (!tableInfoInvoices.some(col => col.name === 'type')) db.exec("ALTER TABLE invoices ADD COLUMN type TEXT DEFAULT 'PURCHASE';");
+    if (!tableInfoInvoices.some(col => col.name === 'client_id')) db.exec("ALTER TABLE invoices ADD COLUMN client_id TEXT;");
 
     const tableInfoTaxLines = db.prepare("PRAGMA table_info(tax_lines)").all();
-    const hasIsService = tableInfoTaxLines.some(col => col.name === 'is_service');
-    const hasWithholdingAmount = tableInfoTaxLines.some(col => col.name === 'withholding_amount');
-    const hasWithholdingTypeId = tableInfoTaxLines.some(col => col.name === 'withholding_type_id');
-
-    if (!hasIsService) {
-        db.exec("ALTER TABLE tax_lines ADD COLUMN is_service INTEGER DEFAULT 0;");
-    }
-    if (!hasWithholdingAmount) {
-        db.exec("ALTER TABLE tax_lines ADD COLUMN withholding_amount REAL DEFAULT 0;");
-    }
-    if (!hasWithholdingTypeId) {
-        db.exec("ALTER TABLE tax_lines ADD COLUMN withholding_type_id TEXT;");
-    }
+    if (!tableInfoTaxLines.some(col => col.name === 'liquidated_vat')) db.exec("ALTER TABLE tax_lines ADD COLUMN liquidated_vat REAL DEFAULT 0;");
+    if (!tableInfoTaxLines.some(col => col.name === 'cative_vat')) db.exec("ALTER TABLE tax_lines ADD COLUMN cative_vat REAL DEFAULT 0;");
+    if (!tableInfoTaxLines.some(col => col.name === 'withholding_type_id')) db.exec("ALTER TABLE tax_lines ADD COLUMN withholding_type_id TEXT;");
 
     // Add default document types if none exist
     const docTypeCount = db.prepare('SELECT count(*) as count FROM document_types').get().count;
@@ -214,7 +226,7 @@ export function initDb() {
         insertWithholdingType.run(crypto.randomUUID(), 'Imposto Predial', 15.0);
     }
 
-    // Add a default user if none exists (for local login)
+    // Add a default user if none exists
     const userCount = db.prepare('SELECT count(*) as count FROM users').get().count;
     if (userCount === 0) {
         db.prepare('INSERT INTO users (id, email, password) VALUES (?, ?, ?)').run(
@@ -303,99 +315,82 @@ export const dbOps = {
 
     // Invoices
     getInvoices: () => {
-        const invoices = db.prepare(`
-            SELECT i.*, dt.code as document_type_code, dt.name as document_type_name
-            FROM invoices i
-            LEFT JOIN document_types dt ON i.document_type_id = dt.id
-            ORDER BY i.created_at DESC
-        `).all();
+        const invoices = db.prepare('SELECT * FROM invoices ORDER BY date DESC, order_number DESC').all();
         return invoices.map(inv => {
             const lines = db.prepare('SELECT * FROM tax_lines WHERE invoice_id = ?').all(inv.id);
+            const mappedLines = lines.map(l => ({
+                id: l.id,
+                taxableValue: l.taxable_value,
+                rate: l.rate,
+                supportedVat: l.supported_vat,
+                deductibleVat: l.deductible_vat,
+                liquidatedVat: l.liquidated_vat,
+                cativeVat: l.cative_vat,
+                isService: !!l.is_service,
+                withholdingAmount: l.withholding_amount,
+                withholdingTypeId: l.withholding_type_id
+            }));
+
             return {
-                ...inv,
-                order_number: inv.order_number,
-                supplier_id: inv.supplier_id,
-                document_type_id: inv.document_type_id,
-                has_pdf: !!inv.has_pdf,
-                tax_lines: lines.map(l => ({
-                    ...l,
-                    is_service: !!l.is_service,
-                    withholding_type_id: l.withholding_type_id
-                }))
+                id: inv.id,
+                type: inv.type,
+                orderNumber: inv.order_number,
+                supplierId: inv.supplier_id,
+                clientId: inv.client_id,
+                documentTypeId: inv.document_type_id,
+                date: inv.date,
+                documentNumber: inv.document_number,
+                notes: inv.notes,
+                hasPdf: !!inv.has_pdf,
+                pdfPath: inv.pdf_path,
+                lines: mappedLines,
+                totalTaxable: mappedLines.reduce((sum, l) => sum + l.taxableValue, 0),
+                totalSupported: mappedLines.reduce((sum, l) => sum + l.supportedVat, 0),
+                totalDeductible: mappedLines.reduce((sum, l) => sum + l.deductibleVat, 0),
+                totalLiquidated: mappedLines.reduce((sum, l) => sum + l.liquidatedVat, 0),
+                totalCative: mappedLines.reduce((sum, l) => sum + l.cativeVat, 0),
+                totalWithholding: mappedLines.reduce((sum, l) => sum + l.withholdingAmount, 0),
+                totalDocument: mappedLines.reduce((sum, l) => sum + l.taxableValue + (inv.type === 'PURCHASE' ? l.supportedVat : l.liquidatedVat) - l.withholdingAmount, 0)
             };
         });
     },
-    addInvoice: (invoice, taxLines) => {
+    addInvoice: ({ invoice, taxLines }) => {
         const insertInvoice = db.prepare(`
-            INSERT INTO invoices (
-                id, order_number, supplier_id, document_type_id, date, document_number, notes, 
-                has_pdf, pdf_path, total_taxable, total_supported, 
-                total_deductible, total_withholding, total_document
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO invoices (id, type, order_number, supplier_id, client_id, document_type_id, date, document_number, notes, has_pdf, pdf_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-
-        const insertTaxLine = db.prepare(`
-            INSERT INTO tax_lines (id, invoice_id, taxable_value, rate, supported_vat, deductible_vat, is_service, withholding_amount, withholding_type_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        const insertLine = db.prepare(`
+            INSERT INTO tax_lines (id, invoice_id, taxable_value, rate, supported_vat, deductible_vat, liquidated_vat, cative_vat, is_service, withholding_amount, withholding_type_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const transaction = db.transaction((inv, lines) => {
-            insertInvoice.run(
-                inv.id, inv.orderNumber, inv.supplierId, inv.documentTypeId, inv.date, inv.documentNumber, inv.notes,
-                inv.hasPdf ? 1 : 0, inv.pdfPath, inv.totalTaxable, inv.totalSupported,
-                inv.totalDeductible, inv.totalWithholding, inv.totalDocument
-            );
+            insertInvoice.run(inv.id, inv.type, inv.orderNumber, inv.supplierId, inv.clientId, inv.documentTypeId, inv.date, inv.documentNumber, inv.notes, inv.hasPdf ? 1 : 0, inv.pdfPath);
             for (const line of lines) {
-                insertTaxLine.run(
-                    crypto.randomUUID(),
-                    inv.id,
-                    line.taxableValue,
-                    line.rate,
-                    line.supportedVat,
-                    line.deductibleVat,
-                    line.isService ? 1 : 0,
-                    line.withholdingAmount,
-                    line.withholdingTypeId
-                );
+                insertLine.run(line.id, inv.id, line.taxableValue, line.rate, line.supportedVat, line.deductibleVat, line.liquidatedVat, line.cativeVat, line.isService ? 1 : 0, line.withholdingAmount, line.withholdingTypeId);
             }
         });
 
         return transaction(invoice, taxLines);
     },
-    updateInvoice: (invoice, taxLines) => {
+    updateInvoice: ({ invoice, taxLines }) => {
         const updateInvoice = db.prepare(`
             UPDATE invoices SET 
-                supplier_id = ?, document_type_id = ?, date = ?, document_number = ?, notes = ?, 
-                has_pdf = ?, pdf_path = ?, total_taxable = ?, total_supported = ?, 
-                total_deductible = ?, total_withholding = ?, total_document = ?
+                type = ?, order_number = ?, supplier_id = ?, client_id = ?, document_type_id = ?, 
+                date = ?, document_number = ?, notes = ?, has_pdf = ?, pdf_path = ?
             WHERE id = ?
         `);
-
-        const deleteTaxLines = db.prepare('DELETE FROM tax_lines WHERE invoice_id = ?');
-        const insertTaxLine = db.prepare(`
-            INSERT INTO tax_lines (id, invoice_id, taxable_value, rate, supported_vat, deductible_vat, is_service, withholding_amount, withholding_type_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        const deleteLines = db.prepare('DELETE FROM tax_lines WHERE invoice_id = ?');
+        const insertLine = db.prepare(`
+            INSERT INTO tax_lines (id, invoice_id, taxable_value, rate, supported_vat, deductible_vat, liquidated_vat, cative_vat, is_service, withholding_amount, withholding_type_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const transaction = db.transaction((inv, lines) => {
-            updateInvoice.run(
-                inv.supplierId, inv.documentTypeId, inv.date, inv.documentNumber, inv.notes,
-                inv.hasPdf ? 1 : 0, inv.pdfPath, inv.totalTaxable, inv.totalSupported,
-                inv.totalDeductible, inv.totalWithholding, inv.totalDocument, inv.id
-            );
-            deleteTaxLines.run(inv.id);
+            updateInvoice.run(inv.type, inv.orderNumber, inv.supplierId, inv.clientId, inv.documentTypeId, inv.date, inv.documentNumber, inv.notes, inv.hasPdf ? 1 : 0, inv.pdfPath, inv.id);
+            deleteLines.run(inv.id);
             for (const line of lines) {
-                insertTaxLine.run(
-                    crypto.randomUUID(),
-                    inv.id,
-                    line.taxableValue,
-                    line.rate,
-                    line.supportedVat,
-                    line.deductibleVat,
-                    line.isService ? 1 : 0,
-                    line.withholdingAmount,
-                    line.withholdingTypeId
-                );
+                insertLine.run(line.id, inv.id, line.taxableValue, line.rate, line.supportedVat, line.deductibleVat, line.liquidatedVat, line.cativeVat, line.isService ? 1 : 0, line.withholdingAmount, line.withholdingTypeId);
             }
         });
 
@@ -405,8 +400,7 @@ export const dbOps = {
 
     // Auth
     login: (email, password) => {
-        const user = db.prepare('SELECT * FROM users WHERE email = ? AND password = ?').get(email, password);
-        return user;
+        return db.prepare('SELECT * FROM users WHERE email = ? AND password = ?').get(email, password);
     },
 
     // File handling
@@ -544,6 +538,7 @@ export const dbOps = {
                 municipalityId: c.municipality_id,
                 conformityDeclarationNumber: c.conformity_declaration_number,
                 type: c.type || 'Normal',
+                cativeVatRate: c.cative_vat_rate || 0,
                 attachments: attachments.map(a => ({
                     id: a.id,
                     clientId: a.client_id,
@@ -557,14 +552,14 @@ export const dbOps = {
         const stmt = db.prepare(`
             INSERT INTO clients (
                 id, name, nif, address, email, in_angola, iva_regime, 
-                province_id, municipality_id, conformity_declaration_number, type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                province_id, municipality_id, conformity_declaration_number, type, cative_vat_rate
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         return stmt.run(
             client.id, client.name, client.nif, client.address, client.email,
             client.inAngola ? 1 : 0, client.ivaRegime,
             client.provinceId, client.municipalityId, client.conformityDeclarationNumber,
-            client.type || 'Normal'
+            client.type || 'Normal', client.cativeVatRate || 0
         );
     },
     updateClient: (client) => {
@@ -572,14 +567,14 @@ export const dbOps = {
             UPDATE clients SET 
                 name = ?, nif = ?, address = ?, email = ?, in_angola = ?, 
                 iva_regime = ?, province_id = ?, municipality_id = ?, 
-                conformity_declaration_number = ?, type = ? 
+                conformity_declaration_number = ?, type = ?, cative_vat_rate = ? 
             WHERE id = ?
         `);
         return stmt.run(
             client.name, client.nif, client.address, client.email,
             client.inAngola ? 1 : 0, client.ivaRegime,
             client.provinceId, client.municipalityId, client.conformityDeclarationNumber,
-            client.type || 'Normal',
+            client.type || 'Normal', client.cativeVatRate || 0,
             client.id
         );
     },
@@ -598,5 +593,81 @@ export const dbOps = {
         const stmt = db.prepare('INSERT INTO client_attachments (id, client_id, title, file_path) VALUES (?, ?, ?, ?)');
         return stmt.run(attachment.id, attachment.clientId, attachment.title, attachment.filePath);
     },
-    deleteClientAttachment: (id) => db.prepare('DELETE FROM client_attachments WHERE id = ?').run(id)
+    deleteClientAttachment: (id) => db.prepare('DELETE FROM client_attachments WHERE id = ?').run(id),
+
+    // Company Info
+    getCompanyInfo: () => {
+        const company = db.prepare('SELECT * FROM company_info LIMIT 1').get();
+        if (!company) return null;
+        const attachments = db.prepare('SELECT * FROM company_attachments WHERE company_id = ?').all(company.id);
+        return {
+            ...company,
+            turnover: company.turnover,
+            ivaRegime: company.iva_regime,
+            serviceRegime: company.service_regime,
+            hasStampDuty: !!company.has_stamp_duty,
+            stampDutyRate: company.stamp_duty_rate,
+            logoPath: company.logo_path,
+            provinceId: company.province_id,
+            municipalityId: company.municipality_id,
+            attachments: attachments.map(a => ({
+                id: a.id,
+                companyId: a.company_id,
+                title: a.title,
+                filePath: a.file_path
+            }))
+        };
+    },
+    updateCompanyInfo: (company) => {
+        const existing = db.prepare('SELECT id FROM company_info LIMIT 1').get();
+        if (!existing) {
+            const stmt = db.prepare(`
+                INSERT INTO company_info (
+                    id, name, nif, address, location, province_id, municipality_id, 
+                    email, website, turnover, iva_regime, service_regime, 
+                    has_stamp_duty, stamp_duty_rate, logo_path
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+            return stmt.run(
+                company.id || crypto.randomUUID(), company.name, company.nif, company.address,
+                company.location, company.provinceId, company.municipalityId,
+                company.email, company.website, company.turnover, company.ivaRegime,
+                company.serviceRegime, company.hasStampDuty ? 1 : 0,
+                company.stampDutyRate, company.logoPath
+            );
+        } else {
+            const stmt = db.prepare(`
+                UPDATE company_info SET 
+                    name = ?, nif = ?, address = ?, location = ?, 
+                    province_id = ?, municipality_id = ?, email = ?, 
+                    website = ?, turnover = ?, iva_regime = ?, 
+                    service_regime = ?, has_stamp_duty = ?, 
+                    stamp_duty_rate = ?, logo_path = ?
+                WHERE id = ?
+            `);
+            return stmt.run(
+                company.name, company.nif, company.address, company.location,
+                company.provinceId, company.municipalityId, company.email,
+                company.website, company.turnover, company.ivaRegime,
+                company.serviceRegime, company.hasStampDuty ? 1 : 0,
+                company.stampDutyRate, company.logoPath,
+                existing.id
+            );
+        }
+    },
+
+    // Company Attachments
+    getCompanyAttachments: (companyId) => {
+        return db.prepare('SELECT * FROM company_attachments WHERE company_id = ?').all(companyId).map(a => ({
+            id: a.id,
+            companyId: a.company_id,
+            title: a.title,
+            filePath: a.file_path
+        }));
+    },
+    addCompanyAttachment: (attachment) => {
+        const stmt = db.prepare('INSERT INTO company_attachments (id, company_id, title, file_path) VALUES (?, ?, ?, ?)');
+        return stmt.run(attachment.id, attachment.companyId, attachment.title, attachment.filePath);
+    },
+    deleteCompanyAttachment: (id) => db.prepare('DELETE FROM company_attachments WHERE id = ?').run(id)
 };

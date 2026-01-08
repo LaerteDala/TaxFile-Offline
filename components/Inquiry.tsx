@@ -24,18 +24,19 @@ import {
   FileSpreadsheet,
   FolderArchive
 } from 'lucide-react';
-import { Invoice, Supplier, TaxLine, DocumentType, WithholdingType } from '../types';
+import { Invoice, Supplier, Client, TaxLine, DocumentType, WithholdingType } from '../types';
 import JSZip from 'jszip';
 
 interface InquiryProps {
   invoices: Invoice[];
   setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>;
   suppliers: Supplier[];
+  clients: Client[];
   documentTypes: DocumentType[];
   withholdingTypes: WithholdingType[];
 }
 
-const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, documentTypes, withholdingTypes }) => {
+const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, clients, documentTypes, withholdingTypes }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -61,18 +62,19 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
   const filteredData = useMemo(() => {
     return invoices.filter(inv => {
       const supplier = suppliers.find(s => s.id === inv.supplierId);
-      const term = searchTerm.toLowerCase();
+      const client = clients.find(c => c.id === inv.clientId);
       const docNum = (inv.documentNumber || "").toLowerCase();
-      const supName = (supplier?.name || "").toLowerCase();
+      const entityName = inv.type === 'PURCHASE' ? (supplier?.name || "").toLowerCase() : (client?.name || "").toLowerCase();
+      const term = searchTerm.toLowerCase();
 
-      const matchesSearch = docNum.includes(term) || supName.includes(term);
+      const matchesSearch = docNum.includes(term) || entityName.includes(term);
       const matchesDate = (!startDate || inv.date >= startDate) && (!endDate || inv.date <= endDate);
-      const matchesSupplier = !filterSupplier || inv.supplierId === filterSupplier;
+      const matchesSupplier = !filterSupplier || inv.supplierId === filterSupplier || inv.clientId === filterSupplier;
       const matchesWithholding = !filterWithholdingType || inv.lines.some(l => l.withholdingTypeId === filterWithholdingType);
 
       return matchesSearch && matchesDate && matchesSupplier && matchesWithholding;
     });
-  }, [invoices, suppliers, searchTerm, startDate, endDate, filterSupplier, filterWithholdingType]);
+  }, [invoices, suppliers, clients, searchTerm, startDate, endDate, filterSupplier, filterWithholdingType]);
 
   const totals = useMemo(() => {
     const baseTotals = filteredData.reduce((acc, row) => ({
@@ -101,17 +103,24 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
     const inv = invoices.find(i => i.id === selectedInvoiceId);
     if (!inv) return null;
     const supplier = suppliers.find(s => s.id === inv.supplierId);
+    const client = clients.find(c => c.id === inv.clientId);
     const docType = documentTypes.find(dt => dt.id === inv.documentTypeId);
+
+    const entityName = inv.type === 'PURCHASE' ? supplier?.name : client?.name;
+    const entityNif = inv.type === 'PURCHASE' ? supplier?.nif : client?.nif;
+    const entityEmail = inv.type === 'PURCHASE' ? supplier?.email : client?.email;
+    const entityAddress = inv.type === 'PURCHASE' ? supplier?.address : client?.address;
+
     return {
       ...inv,
-      supplierName: supplier?.name || 'N/A',
-      nif: supplier?.nif || 'N/A',
-      supplierEmail: supplier?.email || 'N/A',
-      supplierAddress: supplier?.address || 'N/A',
+      supplierName: entityName || 'N/A', // Renamed to entityName in UI, but keeping supplierName for consistency with existing code
+      nif: entityNif || 'N/A',
+      supplierEmail: entityEmail || 'N/A',
+      supplierAddress: entityAddress || 'N/A',
       documentTypeCode: docType?.code || '---',
       documentTypeName: docType?.name || '---'
     };
-  }, [selectedInvoiceId, invoices, suppliers, documentTypes]);
+  }, [selectedInvoiceId, invoices, suppliers, clients, documentTypes]);
 
   const removeInvoice = async (invoice: Invoice) => {
     if (!confirm(`Deseja realmente eliminar permanentemente a factura #${invoice.documentNumber}? Esta acção é irreversível.`)) return;
@@ -140,7 +149,11 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
 
     const rows = filteredData.map(row => {
       const supplier = suppliers.find(s => s.id === row.supplierId);
+      const client = clients.find(c => c.id === row.clientId);
       const docType = documentTypes.find(dt => dt.id === row.documentTypeId);
+
+      const entityName = row.type === 'PURCHASE' ? supplier?.name : client?.name;
+      const entityNif = row.type === 'PURCHASE' ? supplier?.nif : client?.nif;
 
       // Get withholding types names for this invoice
       const wTypes = row.lines
@@ -152,8 +165,8 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
       return [
         row.orderNumber,
         `"${docType?.code || '---'}"`,
-        `"${supplier?.name || 'N/A'}"`,
-        `"${supplier?.nif || 'N/A'}"`,
+        `"${entityName || 'N/A'}"`,
+        `"${entityNif || 'N/A'}"`,
         row.date,
         `"${row.documentNumber}"`,
         row.totalDocument.toFixed(2).replace('.', ','),
@@ -195,7 +208,10 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
     try {
       for (const inv of invoicesWithPdf) {
         const supplier = suppliers.find(s => s.id === inv.supplierId);
-        const folderName = supplier?.name.replace(/[/\\?%*:|"<>]/g, '_') || "Sem Fornecedor";
+        const client = clients.find(c => c.id === inv.clientId);
+        const entityName = inv.type === 'PURCHASE' ? supplier?.name : client?.name;
+
+        const folderName = (entityName || "Sem Entidade").replace(/[/\\?%*:|"<>]/g, '_');
         const fileName = `Factura_${inv.documentNumber.replace(/[/\\?%*:|"<>]/g, '_')}.pdf`;
 
         const buffer = await window.electron.fs.readFile(inv.pdfPath!);
@@ -457,10 +473,25 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
               <span className="text-slate-300 font-black">/</span>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold" />
             </div>
-            <select value={filterSupplier} onChange={(e) => setFilterSupplier(e.target.value)} className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold">
-              <option value="">Todos os Fornecedores</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
+              <label className="flex items-center gap-2 text-sm font-black text-slate-700 uppercase tracking-wider">
+                <Filter size={16} className="text-blue-600" />
+                Entidade
+              </label>
+              <select
+                value={filterSupplier}
+                onChange={(e) => setFilterSupplier(e.target.value)}
+                className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 appearance-none"
+              >
+                <option value="">Todas as Entidades...</option>
+                <optgroup label="Fornecedores">
+                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </optgroup>
+                <optgroup label="Clientes">
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </optgroup>
+              </select>
+            </div>
             <select value={filterWithholdingType} onChange={(e) => setFilterWithholdingType(e.target.value)} className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold">
               <option value="">Todas as Retenções</option>
               {withholdingTypes.map(wt => <option key={wt.id} value={wt.id}>{wt.name}</option>)}
@@ -513,9 +544,9 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ORD</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fornecedor</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Data</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Entidade</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Data</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Doc#</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">IVA Dedutível</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Retenção</th>
@@ -526,12 +557,26 @@ const Inquiry: React.FC<InquiryProps> = ({ invoices, setInvoices, suppliers, doc
             <tbody className="divide-y divide-slate-100">
               {filteredData.map((row) => {
                 const supplier = suppliers.find(s => s.id === row.supplierId);
+                const client = clients.find(c => c.id === row.clientId);
                 const docType = documentTypes.find(dt => dt.id === row.documentTypeId);
                 return (
                   <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-6 py-4"><span className="text-xs font-black text-slate-400 group-hover:text-blue-600 transition-colors">#{row.orderNumber}</span></td>
                     <td className="px-6 py-4"><span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-black font-mono">{docType?.code || '---'}</span></td>
-                    <td className="px-6 py-4"><p className="text-sm font-bold text-slate-800">{supplier?.name || 'N/A'}</p><p className="text-[10px] font-medium text-slate-500">{supplier?.nif || 'N/A'}</p></td>
+                    <td className="px-8 py-5">
+                      <p className="font-bold text-slate-800 text-base">
+                        {row.type === 'PURCHASE'
+                          ? (suppliers.find(s => s.id === row.supplierId)?.name || 'N/A')
+                          : (clients.find(c => c.id === row.clientId)?.name || 'N/A')
+                        }
+                      </p>
+                      <p className="text-[10px] font-medium text-slate-500 uppercase tracking-tighter">
+                        NIF: {row.type === 'PURCHASE'
+                          ? (suppliers.find(s => s.id === row.supplierId)?.nif || '---')
+                          : (clients.find(c => c.id === row.clientId)?.nif || '---')
+                        }
+                      </p>
+                    </td>
                     <td className="px-6 py-4 text-center text-xs font-bold text-slate-600">{row.date}</td>
                     <td className="px-6 py-4 text-center"><span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-mono font-black text-slate-500 uppercase">{row.documentNumber}</span></td>
                     <td className="px-6 py-4 text-right"><span className="text-sm font-black text-emerald-600">{row.totalDeductible.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span></td>

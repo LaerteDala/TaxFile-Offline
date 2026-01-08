@@ -50,8 +50,8 @@ ipcMain.handle('db:deleteWithholdingType', async (_, id) => dbOps.deleteWithhold
 
 
 ipcMain.handle('db:getInvoices', async () => dbOps.getInvoices());
-ipcMain.handle('db:addInvoice', async (_, { invoice, taxLines }) => dbOps.addInvoice(invoice, taxLines));
-ipcMain.handle('db:updateInvoice', async (_, { invoice, taxLines }) => dbOps.updateInvoice(invoice, taxLines));
+ipcMain.handle('db:addInvoice', async (_, data) => dbOps.addInvoice(data));
+ipcMain.handle('db:updateInvoice', async (_, data) => dbOps.updateInvoice(data));
 ipcMain.handle('db:deleteInvoice', async (_, id) => dbOps.deleteInvoice(id));
 
 ipcMain.handle('fs:saveFile', async (_, { fileName, buffer }) => dbOps.saveFile(fileName, buffer));
@@ -84,6 +84,12 @@ ipcMain.handle('db:deleteClient', async (_, id) => dbOps.deleteClient(id));
 ipcMain.handle('db:getClientAttachments', async (_, clientId) => dbOps.getClientAttachments(clientId));
 ipcMain.handle('db:addClientAttachment', async (_, attachment) => dbOps.addClientAttachment(attachment));
 ipcMain.handle('db:deleteClientAttachment', async (_, id) => dbOps.deleteClientAttachment(id));
+
+ipcMain.handle('db:getCompanyInfo', async () => dbOps.getCompanyInfo());
+ipcMain.handle('db:updateCompanyInfo', async (_, company) => dbOps.updateCompanyInfo(company));
+ipcMain.handle('db:getCompanyAttachments', async (_, companyId) => dbOps.getCompanyAttachments(companyId));
+ipcMain.handle('db:addCompanyAttachment', async (_, attachment) => dbOps.addCompanyAttachment(attachment));
+ipcMain.handle('db:deleteCompanyAttachment', async (_, id) => dbOps.deleteCompanyAttachment(id));
 
 
 

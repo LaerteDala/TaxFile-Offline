@@ -40,6 +40,11 @@ contextBridge.exposeInMainWorld('electron', {
         getClientAttachments: (clientId) => ipcRenderer.invoke('db:getClientAttachments', clientId),
         addClientAttachment: (attachment) => ipcRenderer.invoke('db:addClientAttachment', attachment),
         deleteClientAttachment: (id) => ipcRenderer.invoke('db:deleteClientAttachment', id),
+        getCompanyInfo: () => ipcRenderer.invoke('db:getCompanyInfo'),
+        updateCompanyInfo: (company) => ipcRenderer.invoke('db:updateCompanyInfo', company),
+        getCompanyAttachments: (companyId) => ipcRenderer.invoke('db:getCompanyAttachments', companyId),
+        addCompanyAttachment: (attachment) => ipcRenderer.invoke('db:addCompanyAttachment', attachment),
+        deleteCompanyAttachment: (id) => ipcRenderer.invoke('db:deleteCompanyAttachment', id)
     },
 
     fs: {
@@ -48,10 +53,7 @@ contextBridge.exposeInMainWorld('electron', {
         readFile: (filePath) => ipcRenderer.invoke('fs:readFile', filePath),
     },
 
-
     auth: {
-
         login: (email, password) => ipcRenderer.invoke('auth:login', { email, password }),
     }
 });
-

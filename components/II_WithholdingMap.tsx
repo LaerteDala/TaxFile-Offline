@@ -30,6 +30,7 @@ const IIWithholdingMap: React.FC<IIWithholdingMapProps> = ({ invoices, suppliers
         if (!iiType) return [];
 
         return invoices.filter(inv => {
+            if (inv.type !== 'PURCHASE') return false;
             const hasII = inv.lines.some(line => line.withholdingTypeId === iiType.id);
             if (!hasII) return false;
 

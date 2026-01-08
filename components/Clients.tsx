@@ -67,6 +67,7 @@ const Clients: React.FC<ClientsProps> = ({ clients, setClients }) => {
         provinceId: '',
         municipalityId: '',
         conformityDeclarationNumber: '',
+        cativeVatRate: 0,
         attachments: []
     });
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -90,6 +91,7 @@ const Clients: React.FC<ClientsProps> = ({ clients, setClients }) => {
             provinceId: '',
             municipalityId: '',
             conformityDeclarationNumber: '',
+            cativeVatRate: 0,
             attachments: []
         });
         setError(null);
@@ -352,13 +354,35 @@ const Clients: React.FC<ClientsProps> = ({ clients, setClients }) => {
                                     </label>
                                     <select
                                         value={formData.type}
-                                        onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                                        onChange={(e) => {
+                                            const type = e.target.value as any;
+                                            let cativeRate = 0;
+                                            if (type === 'Estado') cativeRate = 100;
+                                            else if (type === 'Instituição Financeira') cativeRate = 50;
+                                            setFormData({ ...formData, type, cativeVatRate: cativeRate });
+                                        }}
                                         className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all appearance-none"
                                     >
                                         <option value="Normal">Normal</option>
                                         <option value="Estado">Estado</option>
                                         <option value="Instituição Financeira">Instituição Financeira</option>
                                     </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <ShieldCheck size={12} className="text-blue-600" />
+                                        Taxa de IVA Cativo (%)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        placeholder="0"
+                                        value={formData.cativeVatRate}
+                                        onChange={(e) => setFormData({ ...formData, cativeVatRate: Number(e.target.value) })}
+                                        className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
+                                    />
                                 </div>
 
                                 <div className="space-y-2">
