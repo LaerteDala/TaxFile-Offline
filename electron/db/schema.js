@@ -214,6 +214,29 @@ export function initDb() {
             name TEXT NOT NULL UNIQUE,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS irt_scales (
+            id TEXT PRIMARY KEY,
+            escalao INTEGER NOT NULL,
+            valor_inicial REAL NOT NULL,
+            valor_final REAL,
+            parcela_fixa REAL DEFAULT 0,
+            taxa REAL DEFAULT 0,
+            excesso REAL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS subsidies (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            subject_to_inss INTEGER DEFAULT 0,
+            inss_limit_type TEXT DEFAULT 'none',
+            inss_limit_value REAL DEFAULT 0,
+            subject_to_irt INTEGER DEFAULT 0,
+            irt_limit_type TEXT DEFAULT 'none',
+            irt_limit_value REAL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     `);
 
     // Migrations: Add columns if they don't exist
@@ -260,6 +283,71 @@ export function initDb() {
         insertWithholdingType.run(crypto.randomUUID(), 'Imposto Industrial', 6.5);
         insertWithholdingType.run(crypto.randomUUID(), 'IRT Grupo B', 6.5);
         insertWithholdingType.run(crypto.randomUUID(), 'Imposto Predial', 15.0);
+    }
+
+    // Add default IRT scales if none exist
+    const irtScaleCount = db.prepare('SELECT count(*) as count FROM irt_scales').get().count;
+    if (irtScaleCount === 0) {
+        const insertIRTScale = db.prepare('INSERT INTO irt_scales (id, escalao, valor_inicial, valor_final, parcela_fixa, taxa, excesso) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        insertIRTScale.run(crypto.randomUUID(), 1, 0, 150000, 0, 0, 0);
+        insertIRTScale.run(crypto.randomUUID(), 2, 150001, 200000, 12500, 16, 150000);
+        insertIRTScale.run(crypto.randomUUID(), 3, 200001, 300000, 31250, 18, 200000);
+        insertIRTScale.run(crypto.randomUUID(), 4, 300001, 500000, 49250, 19, 300000);
+        insertIRTScale.run(crypto.randomUUID(), 5, 500001, 1000000, 87250, 20, 500000);
+        insertIRTScale.run(crypto.randomUUID(), 6, 1000001, 1500000, 187250, 21, 1000000);
+        insertIRTScale.run(crypto.randomUUID(), 7, 1500001, 2000000, 292250, 22, 1500000);
+        insertIRTScale.run(crypto.randomUUID(), 8, 2000001, 2500000, 402250, 23, 2000000);
+        insertIRTScale.run(crypto.randomUUID(), 9, 2500001, 5000000, 517250, 24, 2500000);
+        insertIRTScale.run(crypto.randomUUID(), 10, 5000001, 10000000, 1117250, 24.5, 5000000);
+        insertIRTScale.run(crypto.randomUUID(), 11, 10000001, null, 2342250, 25, 10000000);
+    }
+
+    // Add default Subsidies if none exist
+    const subsidiesCount = db.prepare('SELECT count(*) as count FROM subsidies').get().count;
+    if (subsidiesCount === 0) {
+        const insertSubsidy = db.prepare('INSERT INTO subsidies (id, name, subject_to_inss, inss_limit_type, inss_limit_value, subject_to_irt, irt_limit_type, irt_limit_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+
+        // Alimentação: Sujeito a INSS, IRT isento até 30.000
+        insertSubsidy.run(crypto.randomUUID(), 'Subsídio de Alimentação', 1, 'none', 0, 1, 'fixed', 30000);
+
+        // Transporte: Sujeito a INSS, IRT isento até 30.000
+        insertSubsidy.run(crypto.randomUUID(), 'Subsídio de Transporte', 1, 'none', 0, 1, 'fixed', 30000);
+
+        // Abono de Família: Isento de INSS, IRT isento até 5% do Salário Base
+        insertSubsidy.run(crypto.randomUUID(), 'Abono de Família', 0, 'none', 0, 1, 'percentage', 5);
+
+        // Subsídio de Férias: Isento de INSS, Sujeito a IRT (sem limite)
+        insertSubsidy.run(crypto.randomUUID(), 'Subsídio de Férias', 0, 'none', 0, 1, 'none', 0);
+
+        // Reembolso de Despesas: Sujeito a INSS, Isento de IRT
+        insertSubsidy.run(crypto.randomUUID(), 'Reembolso de Despesas', 1, 'none', 0, 0, 'none', 0);
+
+        // Subsídio de Natal: Sujeito a tudo
+        insertSubsidy.run(crypto.randomUUID(), 'Subsídio de Natal', 1, 'none', 0, 1, 'none', 0);
+
+        // Abono para Falhas: Sujeito a tudo
+        insertSubsidy.run(crypto.randomUUID(), 'Abono para Falhas', 1, 'none', 0, 1, 'none', 0);
+
+        // Subsídio de Renda de Casa: Sujeito a tudo
+        insertSubsidy.run(crypto.randomUUID(), 'Subsídio de Renda de Casa', 1, 'none', 0, 1, 'none', 0);
+
+        // Compensação por Rescisão: Sujeito a tudo
+        insertSubsidy.run(crypto.randomUUID(), 'Compensação por Rescisão', 1, 'none', 0, 1, 'none', 0);
+
+        // Subsídio de Atavio: Sujeito a tudo
+        insertSubsidy.run(crypto.randomUUID(), 'Subsídio de Atavio', 1, 'none', 0, 1, 'none', 0);
+
+        // Subsídio de Representação: Sujeito a tudo
+        insertSubsidy.run(crypto.randomUUID(), 'Subsídio de Representação', 1, 'none', 0, 1, 'none', 0);
+
+        // Prémios: Sujeito a tudo
+        insertSubsidy.run(crypto.randomUUID(), 'Prémios', 1, 'none', 0, 1, 'none', 0);
+
+        // Outros Subsídios Sujeitos a IRT
+        insertSubsidy.run(crypto.randomUUID(), 'Outros Subsídios Sujeitos a IRT', 1, 'none', 0, 1, 'none', 0);
+
+        // Outros Subsídios Não Sujeitos a IRT
+        insertSubsidy.run(crypto.randomUUID(), 'Outros Subsídios Não Sujeitos a IRT', 1, 'none', 0, 0, 'none', 0);
     }
 
     // Add a default user if none exists

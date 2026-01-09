@@ -72,4 +72,28 @@ export const configRepo = {
         return stmt.run(jf.name, jf.id);
     },
     deleteJobFunction: (id) => db.prepare('DELETE FROM job_functions WHERE id = ?').run(id),
+
+    // IRT Scales
+    getIRTScales: () => db.prepare('SELECT * FROM irt_scales ORDER BY escalao').all(),
+    addIRTScale: (scale) => {
+        const stmt = db.prepare('INSERT INTO irt_scales (id, escalao, valor_inicial, valor_final, parcela_fixa, taxa, excesso) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        return stmt.run(scale.id, scale.escalao, scale.valor_inicial, scale.valor_final, scale.parcela_fixa, scale.taxa, scale.excesso);
+    },
+    updateIRTScale: (scale) => {
+        const stmt = db.prepare('UPDATE irt_scales SET escalao = ?, valor_inicial = ?, valor_final = ?, parcela_fixa = ?, taxa = ?, excesso = ? WHERE id = ?');
+        return stmt.run(scale.escalao, scale.valor_inicial, scale.valor_final, scale.parcela_fixa, scale.taxa, scale.excesso, scale.id);
+    },
+    deleteIRTScale: (id) => db.prepare('DELETE FROM irt_scales WHERE id = ?').run(id),
+
+    // Subsidies
+    getSubsidies: () => db.prepare('SELECT * FROM subsidies ORDER BY name').all(),
+    addSubsidy: (subsidy) => {
+        const stmt = db.prepare('INSERT INTO subsidies (id, name, subject_to_inss, inss_limit_type, inss_limit_value, subject_to_irt, irt_limit_type, irt_limit_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        return stmt.run(subsidy.id, subsidy.name, subsidy.subject_to_inss, subsidy.inss_limit_type, subsidy.inss_limit_value, subsidy.subject_to_irt, subsidy.irt_limit_type, subsidy.irt_limit_value);
+    },
+    updateSubsidy: (subsidy) => {
+        const stmt = db.prepare('UPDATE subsidies SET name = ?, subject_to_inss = ?, inss_limit_type = ?, inss_limit_value = ?, subject_to_irt = ?, irt_limit_type = ?, irt_limit_value = ? WHERE id = ?');
+        return stmt.run(subsidy.name, subsidy.subject_to_inss, subsidy.inss_limit_type, subsidy.inss_limit_value, subsidy.subject_to_irt, subsidy.irt_limit_type, subsidy.irt_limit_value, subsidy.id);
+    },
+    deleteSubsidy: (id) => db.prepare('DELETE FROM subsidies WHERE id = ?').run(id),
 };

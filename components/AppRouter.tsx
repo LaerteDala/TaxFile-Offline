@@ -30,6 +30,8 @@ import Municipalities from './Municipalities';
 import Departments from './Departments';
 import JobFunctions from './JobFunctions';
 import FiscalParameters from './FiscalParameters';
+import IRTTable from './IRTTable';
+import Subsidies from './Subsidies';
 import { FileText } from 'lucide-react';
 import { navigation } from '../config/navigation';
 
@@ -201,6 +203,16 @@ const AppRouter: React.FC<AppRouterProps> = ({
                     setDocumentTypes={setDocumentTypes}
                     withholdingTypes={withholdingTypes}
                     setWithholdingTypes={setWithholdingTypes}
+                    onBack={() => setCurrentView('settings')}
+                />
+            )}
+            {currentView === 'irt_table' && (
+                <IRTTable
+                    onBack={() => setCurrentView('settings')}
+                />
+            )}
+            {currentView === 'subsidies' && (
+                <Subsidies
                     onBack={() => setCurrentView('settings')}
                 />
             )}

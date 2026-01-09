@@ -51,6 +51,8 @@ export const settingsMenu: NavItem = {
 export const settingsRelatedViews: View[] = [
     'settings',
     'fiscal_parameters',
+    'irt_table',
+    'subsidies',
     'company_settings',
     'provinces',
     'municipalities',

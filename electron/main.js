@@ -108,6 +108,15 @@ ipcMain.handle('db:getJobFunctions', async () => dbOps.getJobFunctions());
 ipcMain.handle('db:addJobFunction', async (_, jf) => dbOps.addJobFunction(jf));
 ipcMain.handle('db:updateJobFunction', async (_, jf) => dbOps.updateJobFunction(jf));
 ipcMain.handle('db:deleteJobFunction', async (_, id) => dbOps.deleteJobFunction(id));
+ipcMain.handle('db:getIRTScales', async () => dbOps.getIRTScales());
+ipcMain.handle('db:addIRTScale', async (_, scale) => dbOps.addIRTScale(scale));
+ipcMain.handle('db:updateIRTScale', async (_, scale) => dbOps.updateIRTScale(scale));
+ipcMain.handle('db:deleteIRTScale', async (_, id) => dbOps.deleteIRTScale(id));
+
+ipcMain.handle('db:getSubsidies', async () => dbOps.getSubsidies());
+ipcMain.handle('db:addSubsidy', async (_, subsidy) => dbOps.addSubsidy(subsidy));
+ipcMain.handle('db:updateSubsidy', async (_, subsidy) => dbOps.updateSubsidy(subsidy));
+ipcMain.handle('db:deleteSubsidy', async (_, id) => dbOps.deleteSubsidy(id));
 
 ipcMain.handle('auth:login', async (_, { email, password }) => dbOps.login(email, password));
 

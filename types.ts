@@ -191,7 +191,28 @@ export interface StaffAttachment {
   filePath: string;
 }
 
-export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'fiscal_parameters' | 'irt_withholding_map' | 'irt_remuneration_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities' | 'sales' | 'purchases' | 'commercial_cc' | 'company_settings' | 'ii_withheld_values' | 'irt_withheld_values' | 'ip_withheld_values' | 'departments' | 'job_functions';
+export interface IRTScale {
+  id: string;
+  escalao: number;
+  valor_inicial: number;
+  valor_final: number | null;
+  parcela_fixa: number;
+  taxa: number;
+  excesso: number;
+}
+
+export interface Subsidy {
+  id: string;
+  name: string;
+  subject_to_inss: number; // 0 or 1
+  inss_limit_type: 'none' | 'fixed' | 'percentage';
+  inss_limit_value: number;
+  subject_to_irt: number; // 0 or 1
+  irt_limit_type: 'none' | 'fixed' | 'percentage';
+  irt_limit_value: number;
+}
+
+export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'fiscal_parameters' | 'irt_table' | 'subsidies' | 'irt_withholding_map' | 'irt_remuneration_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities' | 'sales' | 'purchases' | 'commercial_cc' | 'company_settings' | 'ii_withheld_values' | 'irt_withheld_values' | 'ip_withheld_values' | 'departments' | 'job_functions';
 
 declare global {
   interface Window {
@@ -255,6 +276,14 @@ declare global {
         addJobFunction: (jf: any) => Promise<any>;
         updateJobFunction: (jf: any) => Promise<any>;
         deleteJobFunction: (id: string) => Promise<any>;
+        getIRTScales: () => Promise<IRTScale[]>;
+        addIRTScale: (scale: any) => Promise<any>;
+        updateIRTScale: (scale: any) => Promise<any>;
+        deleteIRTScale: (id: string) => Promise<any>;
+        getSubsidies: () => Promise<Subsidy[]>;
+        addSubsidy: (subsidy: any) => Promise<any>;
+        updateSubsidy: (subsidy: any) => Promise<any>;
+        deleteSubsidy: (id: string) => Promise<any>;
       };
       fs: {
         saveFile: (fileName: string, buffer: ArrayBuffer) => Promise<string>;

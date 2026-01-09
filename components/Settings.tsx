@@ -7,7 +7,9 @@ import {
     LayoutGrid,
     Briefcase,
     ShieldCheck,
-    ChevronRight
+    ChevronRight,
+    Calculator,
+    Coins
 } from 'lucide-react';
 import { View } from '../types';
 
@@ -52,6 +54,14 @@ const Settings: React.FC<SettingsProps> = ({ setCurrentView }) => {
                     view: 'municipalities' as View,
                     color: 'text-purple-600',
                     bgColor: 'bg-purple-50'
+                },
+                {
+                    name: 'Tabela de IRT',
+                    description: 'Escalões, taxas e parcelas fixas do IRT',
+                    icon: Calculator,
+                    view: 'irt_table' as View,
+                    color: 'text-rose-600',
+                    bgColor: 'bg-rose-50'
                 }
             ]
         },
@@ -74,6 +84,14 @@ const Settings: React.FC<SettingsProps> = ({ setCurrentView }) => {
                     view: 'job_functions' as View,
                     color: 'text-cyan-600',
                     bgColor: 'bg-cyan-50'
+                },
+                {
+                    name: 'Subsídios e Abonos',
+                    description: 'Gestão de subsídios e regras fiscais',
+                    icon: Coins,
+                    view: 'subsidies' as View,
+                    color: 'text-emerald-600',
+                    bgColor: 'bg-emerald-50'
                 }
             ]
         }
@@ -143,7 +161,7 @@ const Settings: React.FC<SettingsProps> = ({ setCurrentView }) => {
                     </div>
                 ))}
             </div>
-        </div>
+        </div >
     );
 };
 

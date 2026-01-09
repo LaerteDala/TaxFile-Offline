@@ -59,7 +59,15 @@ contextBridge.exposeInMainWorld('electron', {
         getJobFunctions: () => ipcRenderer.invoke('db:getJobFunctions'),
         addJobFunction: (jf) => ipcRenderer.invoke('db:addJobFunction', jf),
         updateJobFunction: (jf) => ipcRenderer.invoke('db:updateJobFunction', jf),
-        deleteJobFunction: (id) => ipcRenderer.invoke('db:deleteJobFunction', id)
+        deleteJobFunction: (id) => ipcRenderer.invoke('db:deleteJobFunction', id),
+        getIRTScales: () => ipcRenderer.invoke('db:getIRTScales'),
+        addIRTScale: (scale) => ipcRenderer.invoke('db:addIRTScale', scale),
+        updateIRTScale: (scale) => ipcRenderer.invoke('db:updateIRTScale', scale),
+        deleteIRTScale: (id) => ipcRenderer.invoke('db:deleteIRTScale', id),
+        getSubsidies: () => ipcRenderer.invoke('db:getSubsidies'),
+        addSubsidy: (subsidy) => ipcRenderer.invoke('db:addSubsidy', subsidy),
+        updateSubsidy: (subsidy) => ipcRenderer.invoke('db:updateSubsidy', subsidy),
+        deleteSubsidy: (id) => ipcRenderer.invoke('db:deleteSubsidy', id)
     },
 
     fs: {
