@@ -5,6 +5,7 @@ import { invoiceRepo } from './db/repositories/invoiceRepo.js';
 import { configRepo } from './db/repositories/configRepo.js';
 import { companyRepo } from './db/repositories/companyRepo.js';
 import { ccRepo } from './db/repositories/ccRepo.js';
+import { staffRepo } from './db/repositories/staffRepo.js';
 import { authService } from './db/authService.js';
 import { fileService } from './db/fileService.js';
 
@@ -20,6 +21,7 @@ export const dbOps = {
     ...configRepo,
     ...companyRepo,
     ...ccRepo,
+    ...staffRepo,
     ...authService,
     ...fileService
 };

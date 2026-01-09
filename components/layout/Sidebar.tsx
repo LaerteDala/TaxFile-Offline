@@ -6,7 +6,7 @@ import {
     LogOut
 } from 'lucide-react';
 import { View } from '../../types';
-import { NavItem, navigation, settingsMenu } from '../../config/navigation';
+import { NavItem, navigation, settingsMenu, settingsRelatedViews } from '../../config/navigation';
 
 interface SidebarProps {
     isSidebarOpen: boolean;
@@ -25,16 +25,24 @@ const Sidebar: React.FC<SidebarProps> = ({
     onToggleMenu,
     onLogout
 }) => {
-    const renderNavItem = (item: NavItem) => {
+    const isChildActive = (item: NavItem): boolean => {
+        if (item.view === currentView) return true;
+        if (item.subItems) {
+            return item.subItems.some(sub => isChildActive(sub));
+        }
+        return false;
+    };
+
+    const renderNavItem = (item: NavItem, depth = 0) => {
         if (item.subItems) {
             const isExpanded = expandedMenus.includes(item.id!);
-            const isChildActive = item.subItems.some(sub => sub.view === currentView);
+            const isActive = isChildActive(item);
 
             return (
-                <div key={item.id} className="space-y-1">
+                <div key={item.id || item.name} className="space-y-1">
                     <button
                         onClick={() => onToggleMenu(item.id!)}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${isChildActive ? 'text-white bg-slate-800/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${isActive ? 'text-white bg-slate-800/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                             }`}
                     >
                         <div className="flex items-center gap-4">
@@ -46,32 +54,23 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                     {isExpanded && isSidebarOpen && (
                         <div className="ml-4 pl-4 border-l border-slate-800 space-y-1 animate-in slide-in-from-left-2 duration-200">
-                            {item.subItems.map((sub) => (
-                                <button
-                                    key={sub.view}
-                                    onClick={() => onViewChange(sub.view)}
-                                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-bold transition-all ${currentView === sub.view
-                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
-                                            : 'text-slate-500 hover:text-white hover:bg-slate-800'
-                                        }`}
-                                >
-                                    <sub.icon size={16} />
-                                    <span>{sub.name}</span>
-                                </button>
-                            ))}
+                            {item.subItems.map((sub) => renderNavItem(sub, depth + 1))}
                         </div>
                     )}
                 </div>
             );
         }
 
+        const isSettingsActive = item.id === 'settings_menu' && settingsRelatedViews.includes(currentView);
+        const isActive = currentView === item.view || isSettingsActive;
+
         return (
             <button
-                key={item.name}
+                key={item.view || item.name}
                 onClick={() => onViewChange(item.view!)}
-                className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === item.view
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${isActive
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                     }`}
             >
                 <item.icon size={20} />
@@ -90,11 +89,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
-                {navigation.map(renderNavItem)}
+                {navigation.map((item) => renderNavItem(item, 0))}
             </nav>
 
             <div className="p-4 border-t border-slate-800 space-y-2">
-                {renderNavItem(settingsMenu)}
+                {renderNavItem(settingsMenu, 0)}
 
                 <button
                     onClick={onLogout}

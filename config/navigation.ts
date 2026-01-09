@@ -1,3 +1,4 @@
+
 import {
     LayoutDashboard,
     Users,
@@ -26,7 +27,9 @@ import {
     ShoppingBag,
     ShoppingCart,
     CreditCard,
-    Store
+    Store,
+    Briefcase,
+    LayoutGrid
 } from 'lucide-react';
 import { View } from '../types';
 
@@ -35,20 +38,25 @@ export interface NavItem {
     icon: any;
     view?: View;
     id?: string;
-    subItems?: { name: string; icon: any; view: View }[];
+    subItems?: NavItem[];
 }
 
 export const settingsMenu: NavItem = {
     name: 'Definições',
     icon: SettingsIcon,
     id: 'settings_menu',
-    subItems: [
-        { name: 'Entidade', icon: Building2, view: 'company_settings' as View },
-        { name: 'Geral', icon: SettingsIcon, view: 'settings' as View },
-        { name: 'Províncias', icon: MapPin, view: 'provinces' as View },
-        { name: 'Municípios', icon: Building2, view: 'municipalities' as View },
-    ]
+    view: 'settings' as View
 };
+
+export const settingsRelatedViews: View[] = [
+    'settings',
+    'fiscal_parameters',
+    'company_settings',
+    'provinces',
+    'municipalities',
+    'departments',
+    'job_functions'
+];
 
 export const navigation: NavItem[] = [
     { name: 'Dashboard', icon: LayoutDashboard, view: 'dashboard' as View },
@@ -111,6 +119,7 @@ export const navigation: NavItem[] = [
         subItems: [
             { name: 'Mapa de Retenção', icon: FileSpreadsheet, view: 'irt_withholding_map' as View },
             { name: 'Valores Retidos', icon: Coins, view: 'irt_withheld_values' as View },
+            { name: 'Mapa de Remunerações', icon: FileSpreadsheet, view: 'irt_remuneration_map' as View },
             { name: 'Relatórios', icon: BarChart3, view: 'irt_reports' as View },
         ]
     },

@@ -67,6 +67,16 @@ export interface WithholdingType {
   rate: number;
 }
 
+export interface Department {
+  id: string;
+  name: string;
+}
+
+export interface JobFunction {
+  id: string;
+  name: string;
+}
+
 export interface TaxLine {
   id: string;
   taxableValue: number;
@@ -155,7 +165,33 @@ export interface CompanyAttachment {
   filePath: string;
 }
 
-export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'irt_withholding_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities' | 'sales' | 'purchases' | 'commercial_cc' | 'company_settings' | 'ii_withheld_values' | 'irt_withheld_values' | 'ip_withheld_values';
+export interface Staff {
+  id: string;
+  name: string;
+  identityDocument: string;
+  nif: string;
+  socialSecurityNumber: string;
+  department: string;
+  jobFunction: string;
+  provinceId: string;
+  municipalityId: string;
+  type: 'Nacional' | 'Estrangeiro';
+  notSubjectToSS: boolean;
+  irtExempt: boolean;
+  isRetired: boolean;
+  ssContributionRate: 0 | 3 | 8;
+  photoPath?: string;
+  attachments: StaffAttachment[];
+}
+
+export interface StaffAttachment {
+  id: string;
+  staffId: string;
+  title: string;
+  filePath: string;
+}
+
+export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'fiscal_parameters' | 'irt_withholding_map' | 'irt_remuneration_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities' | 'sales' | 'purchases' | 'commercial_cc' | 'company_settings' | 'ii_withheld_values' | 'irt_withheld_values' | 'ip_withheld_values' | 'departments' | 'job_functions';
 
 declare global {
   interface Window {
@@ -204,6 +240,21 @@ declare global {
         getCompanyAttachments: (companyId: string) => Promise<CompanyAttachment[]>;
         addCompanyAttachment: (attachment: CompanyAttachment) => Promise<any>;
         deleteCompanyAttachment: (id: string) => Promise<any>;
+        getStaff: () => Promise<Staff[]>;
+        addStaff: (staff: any) => Promise<any>;
+        updateStaff: (staff: any) => Promise<any>;
+        deleteStaff: (id: string) => Promise<any>;
+        getStaffAttachments: (staffId: string) => Promise<StaffAttachment[]>;
+        addStaffAttachment: (attachment: any) => Promise<any>;
+        deleteStaffAttachment: (id: string) => Promise<any>;
+        getDepartments: () => Promise<Department[]>;
+        addDepartment: (dept: any) => Promise<any>;
+        updateDepartment: (dept: any) => Promise<any>;
+        deleteDepartment: (id: string) => Promise<any>;
+        getJobFunctions: () => Promise<JobFunction[]>;
+        addJobFunction: (jf: any) => Promise<any>;
+        updateJobFunction: (jf: any) => Promise<any>;
+        deleteJobFunction: (id: string) => Promise<any>;
       };
       fs: {
         saveFile: (fileName: string, buffer: ArrayBuffer) => Promise<string>;

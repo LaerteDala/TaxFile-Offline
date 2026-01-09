@@ -48,4 +48,28 @@ export const configRepo = {
         return stmt.run(municipality.province_id, municipality.name, municipality.id);
     },
     deleteMunicipality: (id) => db.prepare('DELETE FROM municipalities WHERE id = ?').run(id),
+
+    // Departments
+    getDepartments: () => db.prepare('SELECT * FROM departments ORDER BY name').all(),
+    addDepartment: (dept) => {
+        const stmt = db.prepare('INSERT INTO departments (id, name) VALUES (?, ?)');
+        return stmt.run(dept.id, dept.name);
+    },
+    updateDepartment: (dept) => {
+        const stmt = db.prepare('UPDATE departments SET name = ? WHERE id = ?');
+        return stmt.run(dept.name, dept.id);
+    },
+    deleteDepartment: (id) => db.prepare('DELETE FROM departments WHERE id = ?').run(id),
+
+    // Job Functions
+    getJobFunctions: () => db.prepare('SELECT * FROM job_functions ORDER BY name').all(),
+    addJobFunction: (jf) => {
+        const stmt = db.prepare('INSERT INTO job_functions (id, name) VALUES (?, ?)');
+        return stmt.run(jf.id, jf.name);
+    },
+    updateJobFunction: (jf) => {
+        const stmt = db.prepare('UPDATE job_functions SET name = ? WHERE id = ?');
+        return stmt.run(jf.name, jf.id);
+    },
+    deleteJobFunction: (id) => db.prepare('DELETE FROM job_functions WHERE id = ?').run(id),
 };

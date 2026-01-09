@@ -44,7 +44,22 @@ contextBridge.exposeInMainWorld('electron', {
         updateCompanyInfo: (company) => ipcRenderer.invoke('db:updateCompanyInfo', company),
         getCompanyAttachments: (companyId) => ipcRenderer.invoke('db:getCompanyAttachments', companyId),
         addCompanyAttachment: (attachment) => ipcRenderer.invoke('db:addCompanyAttachment', attachment),
-        deleteCompanyAttachment: (id) => ipcRenderer.invoke('db:deleteCompanyAttachment', id)
+        deleteCompanyAttachment: (id) => ipcRenderer.invoke('db:deleteCompanyAttachment', id),
+        getStaff: () => ipcRenderer.invoke('db:getStaff'),
+        addStaff: (staff) => ipcRenderer.invoke('db:addStaff', staff),
+        updateStaff: (staff) => ipcRenderer.invoke('db:updateStaff', staff),
+        deleteStaff: (id) => ipcRenderer.invoke('db:deleteStaff', id),
+        getStaffAttachments: (staffId) => ipcRenderer.invoke('db:getStaffAttachments', staffId),
+        addStaffAttachment: (attachment) => ipcRenderer.invoke('db:addStaffAttachment', attachment),
+        deleteStaffAttachment: (id) => ipcRenderer.invoke('db:deleteStaffAttachment', id),
+        getDepartments: () => ipcRenderer.invoke('db:getDepartments'),
+        addDepartment: (dept) => ipcRenderer.invoke('db:addDepartment', dept),
+        updateDepartment: (dept) => ipcRenderer.invoke('db:updateDepartment', dept),
+        deleteDepartment: (id) => ipcRenderer.invoke('db:deleteDepartment', id),
+        getJobFunctions: () => ipcRenderer.invoke('db:getJobFunctions'),
+        addJobFunction: (jf) => ipcRenderer.invoke('db:addJobFunction', jf),
+        updateJobFunction: (jf) => ipcRenderer.invoke('db:updateJobFunction', jf),
+        deleteJobFunction: (id) => ipcRenderer.invoke('db:deleteJobFunction', id)
     },
 
     fs: {

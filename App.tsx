@@ -15,9 +15,12 @@ const App: React.FC = () => {
     session,
     suppliers, setSuppliers,
     clients, setClients,
+    staff, setStaff,
     invoices, setInvoices,
     documentTypes, setDocumentTypes,
     withholdingTypes, setWithholdingTypes,
+    departments, setDepartments,
+    jobFunctions, setJobFunctions,
     ccDocuments,
     selectedCCDocument, setSelectedCCDocument,
     ccInitialIsViewing, setCcInitialIsViewing,
@@ -65,12 +68,18 @@ const App: React.FC = () => {
             setSuppliers={setSuppliers}
             clients={clients}
             setClients={setClients}
+            staff={staff}
+            setStaff={setStaff}
             invoices={invoices}
             setInvoices={setInvoices}
             documentTypes={documentTypes}
             setDocumentTypes={setDocumentTypes}
             withholdingTypes={withholdingTypes}
             setWithholdingTypes={setWithholdingTypes}
+            departments={departments}
+            setDepartments={setDepartments}
+            jobFunctions={jobFunctions}
+            setJobFunctions={setJobFunctions}
             ccDocuments={ccDocuments}
             selectedCCDocument={selectedCCDocument}
             setSelectedCCDocument={setSelectedCCDocument}

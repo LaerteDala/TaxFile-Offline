@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Supplier, Client, Invoice, DocumentType, WithholdingType, CCDocument } from '../types';
+import { View, Supplier, Client, Staff as StaffType, Invoice, DocumentType, WithholdingType, CCDocument, Department, JobFunction } from '../types';
 import Dashboard from './Dashboard';
 import Suppliers from './Suppliers';
 import Clients from './Clients';
@@ -24,8 +24,12 @@ import IPWithholdingMap from './IP_WithholdingMap';
 import IPWithheldValues from './IP_WithheldValues';
 import IPReports from './IP_Reports';
 import TaxIVA from './TaxIVA';
+import Staff from './Staff';
 import Provinces from './Provinces';
 import Municipalities from './Municipalities';
+import Departments from './Departments';
+import JobFunctions from './JobFunctions';
+import FiscalParameters from './FiscalParameters';
 import { FileText } from 'lucide-react';
 import { navigation } from '../config/navigation';
 
@@ -36,6 +40,12 @@ interface AppRouterProps {
     setSuppliers: React.Dispatch<React.SetStateAction<Supplier[]>>;
     clients: Client[];
     setClients: React.Dispatch<React.SetStateAction<Client[]>>;
+    staff: StaffType[];
+    setStaff: React.Dispatch<React.SetStateAction<StaffType[]>>;
+    departments: Department[];
+    setDepartments: React.Dispatch<React.SetStateAction<Department[]>>;
+    jobFunctions: JobFunction[];
+    setJobFunctions: React.Dispatch<React.SetStateAction<JobFunction[]>>;
     invoices: Invoice[];
     setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>;
     documentTypes: DocumentType[];
@@ -59,6 +69,12 @@ const AppRouter: React.FC<AppRouterProps> = ({
     setSuppliers,
     clients,
     setClients,
+    staff,
+    setStaff,
+    departments,
+    setDepartments,
+    jobFunctions,
+    setJobFunctions,
     invoices,
     setInvoices,
     documentTypes,
@@ -85,6 +101,14 @@ const AppRouter: React.FC<AppRouterProps> = ({
             )}
             {currentView === 'suppliers' && <Suppliers suppliers={suppliers} setSuppliers={setSuppliers} setInvoices={setInvoices} />}
             {currentView === 'clients' && <Clients clients={clients} setClients={setClients} />}
+            {currentView === 'staff' && (
+                <Staff
+                    staff={staff}
+                    setStaff={setStaff}
+                    departments={departments}
+                    jobFunctions={jobFunctions}
+                />
+            )}
             {currentView === 'sales' && <Sales />}
             {currentView === 'purchases' && <Purchases />}
             {currentView === 'commercial_cc' && <CommercialCC />}
@@ -164,12 +188,20 @@ const AppRouter: React.FC<AppRouterProps> = ({
             {currentView === 'ip_reports' && <IPReports invoices={invoices} withholdingTypes={withholdingTypes} />}
             {currentView === 'provinces' && <Provinces />}
             {currentView === 'municipalities' && <Municipalities />}
+            {currentView === 'departments' && <Departments departments={departments} setDepartments={setDepartments} />}
+            {currentView === 'job_functions' && <JobFunctions jobFunctions={jobFunctions} setJobFunctions={setJobFunctions} />}
             {currentView === 'settings' && (
                 <Settings
+                    setCurrentView={setCurrentView}
+                />
+            )}
+            {currentView === 'fiscal_parameters' && (
+                <FiscalParameters
                     documentTypes={documentTypes}
                     setDocumentTypes={setDocumentTypes}
                     withholdingTypes={withholdingTypes}
                     setWithholdingTypes={setWithholdingTypes}
+                    onBack={() => setCurrentView('settings')}
                 />
             )}
             {currentView === 'tax_iva' && (
@@ -181,7 +213,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
                     withholdingTypes={withholdingTypes}
                 />
             )}
-            {['tax_is', 'tax_ivm', 'tax_iac', 'clients', 'staff', 'contracts'].includes(currentView) && (
+            {['tax_is', 'tax_ivm', 'tax_iac', 'clients', 'contracts', 'irt_remuneration_map'].includes(currentView) && (
                 <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
                     <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
                         {React.createElement(

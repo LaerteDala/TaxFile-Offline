@@ -174,6 +174,46 @@ export function initDb() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (company_id) REFERENCES company_info(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS staff (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            identity_document TEXT,
+            nif TEXT,
+            social_security_number TEXT,
+            department TEXT,
+            job_function TEXT,
+            province_id TEXT,
+            municipality_id TEXT,
+            type TEXT DEFAULT 'Nacional',
+            not_subject_to_ss INTEGER DEFAULT 0,
+            irt_exempt INTEGER DEFAULT 0,
+            is_retired INTEGER DEFAULT 0,
+            ss_contribution_rate REAL DEFAULT 3,
+            photo_path TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS staff_attachments (
+            id TEXT PRIMARY KEY,
+            staff_id TEXT,
+            title TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS departments (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS job_functions (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     `);
 
     // Migrations: Add columns if they don't exist
@@ -199,6 +239,10 @@ export function initDb() {
 
     const tableInfoProvinces = db.prepare("PRAGMA table_info(provinces)").all();
     if (!tableInfoProvinces.some(col => col.name === 'code')) db.exec("ALTER TABLE provinces ADD COLUMN code TEXT;");
+
+    const tableInfoStaff = db.prepare("PRAGMA table_info(staff)").all();
+    if (!tableInfoStaff.some(col => col.name === 'is_retired')) db.exec("ALTER TABLE staff ADD COLUMN is_retired INTEGER DEFAULT 0;");
+    if (!tableInfoStaff.some(col => col.name === 'ss_contribution_rate')) db.exec("ALTER TABLE staff ADD COLUMN ss_contribution_rate REAL DEFAULT 3;");
 
     // Add default document types if none exist
     const docTypeCount = db.prepare('SELECT count(*) as count FROM document_types').get().count;

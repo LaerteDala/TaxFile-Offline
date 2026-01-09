@@ -1,107 +1,147 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import {
-    FileText,
-    ShieldCheck,
     Settings as SettingsIcon,
+    Building2,
     MapPin,
-    Building2
+    Users,
+    LayoutGrid,
+    Briefcase,
+    ShieldCheck,
+    ChevronRight
 } from 'lucide-react';
-import DocumentTypes from './DocumentTypes';
-import WithholdingTypes from './WithholdingTypes';
-import Provinces from './Provinces';
-import Municipalities from './Municipalities';
-import { DocumentType, WithholdingType } from '../types';
+import { View } from '../types';
 
 interface SettingsProps {
-    documentTypes: DocumentType[];
-    setDocumentTypes: React.Dispatch<React.SetStateAction<DocumentType[]>>;
-    withholdingTypes: WithholdingType[];
-    setWithholdingTypes: React.Dispatch<React.SetStateAction<WithholdingType[]>>;
+    setCurrentView: (view: View) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({
-    documentTypes,
-    setDocumentTypes,
-    withholdingTypes,
-    setWithholdingTypes
-}) => {
-    const [activeTab, setActiveTab] = useState<'documents' | 'withholding' | 'provinces' | 'municipalities'>('documents');
+const Settings: React.FC<SettingsProps> = ({ setCurrentView }) => {
+    const categories = [
+        {
+            title: 'Geral',
+            description: 'Configurações fundamentais da entidade e tabelas de apoio do sistema.',
+            items: [
+                {
+                    name: 'Entidade',
+                    description: 'Dados da empresa, logótipo e regime fiscal',
+                    icon: Building2,
+                    view: 'company_settings' as View,
+                    color: 'text-blue-600',
+                    bgColor: 'bg-blue-50'
+                },
+                {
+                    name: 'Parâmetros Fiscais',
+                    description: 'Tipos de documento e taxas de retenção na fonte',
+                    icon: ShieldCheck,
+                    view: 'fiscal_parameters' as View,
+                    color: 'text-indigo-600',
+                    bgColor: 'bg-indigo-50'
+                },
+                {
+                    name: 'Províncias',
+                    description: 'Gestão da lista de províncias de Angola',
+                    icon: MapPin,
+                    view: 'provinces' as View,
+                    color: 'text-emerald-600',
+                    bgColor: 'bg-emerald-50'
+                },
+                {
+                    name: 'Municípios',
+                    description: 'Gestão de municípios por província',
+                    icon: Building2,
+                    view: 'municipalities' as View,
+                    color: 'text-purple-600',
+                    bgColor: 'bg-purple-50'
+                }
+            ]
+        },
+        {
+            title: 'Gestão do Pessoal',
+            description: 'Configurações relacionadas com a gestão de recursos humanos.',
+            items: [
+                {
+                    name: 'Departamentos',
+                    description: 'Estrutura orgânica da empresa',
+                    icon: LayoutGrid,
+                    view: 'departments' as View,
+                    color: 'text-orange-600',
+                    bgColor: 'bg-orange-50'
+                },
+                {
+                    name: 'Funções',
+                    description: 'Cargos e funções profissionais',
+                    icon: Briefcase,
+                    view: 'job_functions' as View,
+                    color: 'text-cyan-600',
+                    bgColor: 'bg-cyan-50'
+                }
+            ]
+        }
+    ];
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-                        <div className="p-2 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-600/20">
-                            <SettingsIcon size={24} />
+        <div className="max-w-5xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex items-start justify-between">
+                <div className="space-y-2">
+                    <h2 className="text-4xl font-black text-slate-800 tracking-tight flex items-center gap-4">
+                        <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-600/20">
+                            <SettingsIcon size={32} />
                         </div>
-                        Configurações do Sistema
+                        Gestão de Configurações
                     </h2>
-                    <p className="text-sm text-slate-500 font-medium ml-12">Gerir parâmetros globais, tabelas de apoio e taxas de imposto</p>
+                    <p className="text-lg text-slate-500 font-medium max-w-2xl">
+                        Central de controlo do sistema. Configure os parâmetros base, tabelas de apoio e estrutura organizacional.
+                    </p>
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 p-1.5 bg-slate-100/80 backdrop-blur-sm rounded-2xl w-fit border border-slate-200/50 shadow-inner">
-                <button
-                    onClick={() => setActiveTab('documents')}
-                    className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-300 ${activeTab === 'documents'
-                        ? 'bg-white text-blue-600 shadow-md shadow-slate-200'
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                        }`}
-                >
-                    <FileText size={16} />
-                    Tipos de Documento
-                </button>
-                <button
-                    onClick={() => setActiveTab('withholding')}
-                    className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-300 ${activeTab === 'withholding'
-                        ? 'bg-white text-blue-600 shadow-md shadow-slate-200'
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                        }`}
-                >
-                    <ShieldCheck size={16} />
-                    Retenção na Fonte
-                </button>
-                <button
-                    onClick={() => setActiveTab('provinces')}
-                    className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-300 ${activeTab === 'provinces'
-                        ? 'bg-white text-blue-600 shadow-md shadow-slate-200'
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                        }`}
-                >
-                    <MapPin size={16} />
-                    Províncias
-                </button>
-                <button
-                    onClick={() => setActiveTab('municipalities')}
-                    className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-300 ${activeTab === 'municipalities'
-                        ? 'bg-white text-blue-600 shadow-md shadow-slate-200'
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                        }`}
-                >
-                    <Building2 size={16} />
-                    Municípios
-                </button>
-            </div>
+            <div className="space-y-12">
+                {categories.map((category) => (
+                    <div key={category.title} className="space-y-4">
+                        <div className="flex items-center gap-3 px-2">
+                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-wider">
+                                {category.title}
+                            </h3>
+                            <div className="h-px flex-1 bg-slate-200"></div>
+                        </div>
 
-            <div className="bg-white/50 backdrop-blur-sm rounded-[2.5rem] border border-slate-200/60 p-2 min-h-[600px]">
-                <div className="bg-white rounded-[2.2rem] p-8 shadow-sm h-full">
-                    {activeTab === 'documents' && (
-                        <DocumentTypes
-                            documentTypes={documentTypes}
-                            setDocumentTypes={setDocumentTypes}
-                        />
-                    )}
-                    {activeTab === 'withholding' && (
-                        <WithholdingTypes
-                            withholdingTypes={withholdingTypes}
-                            setWithholdingTypes={setWithholdingTypes}
-                        />
-                    )}
-                    {activeTab === 'provinces' && <Provinces />}
-                    {activeTab === 'municipalities' && <Municipalities />}
-                </div>
+                        <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
+                            <div className="divide-y divide-slate-100">
+                                {category.items.map((item) => (
+                                    <button
+                                        key={item.name}
+                                        onClick={() => setCurrentView(item.view)}
+                                        className="w-full group flex items-center justify-between p-6 hover:bg-slate-50 transition-all duration-300 text-left"
+                                    >
+                                        <div className="flex items-center gap-6">
+                                            <div className={`w-12 h-12 ${item.bgColor} rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500`}>
+                                                <item.icon size={24} className={item.color} />
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <h4 className="text-lg font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                                                    {item.name}
+                                                </h4>
+                                                <p className="text-sm text-slate-500 font-medium">
+                                                    {item.description}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-blue-600 font-bold text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-[-10px] group-hover:translate-x-0">
+                                                Configurar
+                                            </div>
+                                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+                                                <ChevronRight size={18} />
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );

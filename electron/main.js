@@ -91,7 +91,23 @@ ipcMain.handle('db:getCompanyAttachments', async (_, companyId) => dbOps.getComp
 ipcMain.handle('db:addCompanyAttachment', async (_, attachment) => dbOps.addCompanyAttachment(attachment));
 ipcMain.handle('db:deleteCompanyAttachment', async (_, id) => dbOps.deleteCompanyAttachment(id));
 
+ipcMain.handle('db:getStaff', async () => dbOps.getStaff());
+ipcMain.handle('db:addStaff', async (_, staff) => dbOps.addStaff(staff));
+ipcMain.handle('db:updateStaff', async (_, staff) => dbOps.updateStaff(staff));
+ipcMain.handle('db:deleteStaff', async (_, id) => dbOps.deleteStaff(id));
+ipcMain.handle('db:getStaffAttachments', async (_, staffId) => dbOps.getStaffAttachments(staffId));
+ipcMain.handle('db:addStaffAttachment', async (_, attachment) => dbOps.addStaffAttachment(attachment));
+ipcMain.handle('db:deleteStaffAttachment', async (_, id) => dbOps.deleteStaffAttachment(id));
 
+ipcMain.handle('db:getDepartments', async () => dbOps.getDepartments());
+ipcMain.handle('db:addDepartment', async (_, dept) => dbOps.addDepartment(dept));
+ipcMain.handle('db:updateDepartment', async (_, dept) => dbOps.updateDepartment(dept));
+ipcMain.handle('db:deleteDepartment', async (_, id) => dbOps.deleteDepartment(id));
+
+ipcMain.handle('db:getJobFunctions', async () => dbOps.getJobFunctions());
+ipcMain.handle('db:addJobFunction', async (_, jf) => dbOps.addJobFunction(jf));
+ipcMain.handle('db:updateJobFunction', async (_, jf) => dbOps.updateJobFunction(jf));
+ipcMain.handle('db:deleteJobFunction', async (_, id) => dbOps.deleteJobFunction(id));
 
 ipcMain.handle('auth:login', async (_, { email, password }) => dbOps.login(email, password));
 
