@@ -108,6 +108,7 @@ ipcMain.handle('db:getJobFunctions', async () => dbOps.getJobFunctions());
 ipcMain.handle('db:addJobFunction', async (_, jf) => dbOps.addJobFunction(jf));
 ipcMain.handle('db:updateJobFunction', async (_, jf) => dbOps.updateJobFunction(jf));
 ipcMain.handle('db:deleteJobFunction', async (_, id) => dbOps.deleteJobFunction(id));
+
 ipcMain.handle('db:getIRTScales', async () => dbOps.getIRTScales());
 ipcMain.handle('db:addIRTScale', async (_, scale) => dbOps.addIRTScale(scale));
 ipcMain.handle('db:updateIRTScale', async (_, scale) => dbOps.updateIRTScale(scale));
@@ -118,8 +119,21 @@ ipcMain.handle('db:addSubsidy', async (_, subsidy) => dbOps.addSubsidy(subsidy))
 ipcMain.handle('db:updateSubsidy', async (_, subsidy) => dbOps.updateSubsidy(subsidy));
 ipcMain.handle('db:deleteSubsidy', async (_, id) => dbOps.deleteSubsidy(id));
 
-ipcMain.handle('auth:login', async (_, { email, password }) => dbOps.login(email, password));
+// Remuneration Maps
+ipcMain.handle('db:getRemunerationMaps', async () => dbOps.getRemunerationMaps());
+ipcMain.handle('db:getRemunerationMap', async (_, id) => dbOps.getRemunerationMap(id));
+ipcMain.handle('db:addRemunerationMap', async (_, map) => dbOps.addRemunerationMap(map));
+ipcMain.handle('db:updateRemunerationMapStatus', async (_, { id, status }) => dbOps.updateRemunerationMapStatus(id, status));
+ipcMain.handle('db:deleteRemunerationMap', async (_, id) => dbOps.deleteRemunerationMap(id));
 
+ipcMain.handle('db:addRemunerationLine', async (_, line) => dbOps.addRemunerationLine(line));
+ipcMain.handle('db:updateRemunerationLine', async (_, line) => dbOps.updateRemunerationLine(line));
+ipcMain.handle('db:deleteRemunerationLine', async (_, id) => dbOps.deleteRemunerationLine(id));
+
+ipcMain.handle('db:addRemunerationLineSubsidy', async (_, subsidy) => dbOps.addRemunerationLineSubsidy(subsidy));
+ipcMain.handle('db:deleteRemunerationLineSubsidies', async (_, lineId) => dbOps.deleteRemunerationLineSubsidies(lineId));
+
+ipcMain.handle('auth:login', async (_, { email, password }) => dbOps.login(email, password));
 
 app.whenReady().then(() => {
     initDb();

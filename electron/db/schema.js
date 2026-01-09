@@ -350,6 +350,59 @@ export function initDb() {
         insertSubsidy.run(crypto.randomUUID(), 'Outros Subsídios Não Sujeitos a IRT', 1, 'none', 0, 0, 'none', 0);
     }
 
+    // Remuneration Maps
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS remuneration_maps (
+            id TEXT PRIMARY KEY,
+            map_number INTEGER NOT NULL,
+            period TEXT NOT NULL, -- YYYY-MM
+            status TEXT DEFAULT 'draft', -- draft, approved
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS remuneration_lines (
+            id TEXT PRIMARY KEY,
+            map_id TEXT NOT NULL,
+            staff_id TEXT NOT NULL,
+            base_salary REAL DEFAULT 0,
+            overtime_value REAL DEFAULT 0,
+            deductions_value REAL DEFAULT 0,
+            
+            manual_excess_bool INTEGER DEFAULT 0, -- 0 or 1
+            manual_excess_value REAL DEFAULT 0,
+            
+            total_non_subject_subsidies REAL DEFAULT 0,
+            total_subject_subsidies REAL DEFAULT 0,
+            
+            gross_salary REAL DEFAULT 0,
+            
+            inss_base REAL DEFAULT 0,
+            inss_value REAL DEFAULT 0,
+            
+            irt_base REAL DEFAULT 0,
+            irt_scale_id TEXT,
+            irt_value REAL DEFAULT 0,
+            
+            net_salary REAL DEFAULT 0,
+            
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(map_id) REFERENCES remuneration_maps(id) ON DELETE CASCADE,
+            FOREIGN KEY(staff_id) REFERENCES staff(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS remuneration_line_subsidies (
+            id TEXT PRIMARY KEY,
+            line_id TEXT NOT NULL,
+            subsidy_id TEXT NOT NULL,
+            amount REAL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(line_id) REFERENCES remuneration_lines(id) ON DELETE CASCADE,
+            FOREIGN KEY(subsidy_id) REFERENCES subsidies(id)
+        );
+    `);
+
     // Add a default user if none exists
     const userCount = db.prepare('SELECT count(*) as count FROM users').get().count;
     if (userCount === 0) {

@@ -212,6 +212,57 @@ export interface Subsidy {
   irt_limit_value: number;
 }
 
+export interface RemunerationMap {
+  id: string;
+  map_number: number;
+  period: string; // YYYY-MM
+  status: 'draft' | 'approved';
+  created_at?: string;
+  updated_at?: string;
+  lines?: RemunerationLine[];
+}
+
+export interface RemunerationLine {
+  id: string;
+  map_id: string;
+  staff_id: string;
+  staff_name?: string;
+  staff_nif?: string;
+  social_security_number?: string;
+  job_title?: string;
+
+  base_salary: number;
+  overtime_value: number;
+  deductions_value: number;
+
+  manual_excess_bool: number; // 0 or 1
+  manual_excess_value: number;
+
+  total_non_subject_subsidies: number;
+  total_subject_subsidies: number;
+
+  gross_salary: number;
+
+  inss_base: number;
+  inss_value: number;
+
+  irt_base: number;
+  irt_scale_id: string | null;
+  irt_value: number;
+
+  net_salary: number;
+
+  subsidies?: RemunerationLineSubsidy[];
+}
+
+export interface RemunerationLineSubsidy {
+  id: string;
+  line_id: string;
+  subsidy_id: string;
+  subsidy_name?: string;
+  amount: number;
+}
+
 export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'fiscal_parameters' | 'irt_table' | 'subsidies' | 'irt_withholding_map' | 'irt_remuneration_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities' | 'sales' | 'purchases' | 'commercial_cc' | 'company_settings' | 'ii_withheld_values' | 'irt_withheld_values' | 'ip_withheld_values' | 'departments' | 'job_functions';
 
 declare global {
@@ -284,6 +335,21 @@ declare global {
         addSubsidy: (subsidy: any) => Promise<any>;
         updateSubsidy: (subsidy: any) => Promise<any>;
         deleteSubsidy: (id: string) => Promise<any>;
+
+        getRemunerationMaps: () => Promise<RemunerationMap[]>;
+        getRemunerationMap: (id: string) => Promise<RemunerationMap>;
+        addRemunerationMap: (map: any) => Promise<any>;
+        updateRemunerationMapStatus: (id: string, status: string) => Promise<any>;
+        deleteRemunerationMap: (id: string) => Promise<any>;
+
+        addRemunerationLine: (line: any) => Promise<any>;
+        updateRemunerationLine: (line: any) => Promise<any>;
+        deleteRemunerationLine: (id: string) => Promise<any>;
+
+        addRemunerationLineSubsidy: (subsidy: any) => Promise<any>;
+        deleteRemunerationLineSubsidies: (lineId: string) => Promise<any>;
+        getRemunerationLines: (mapId: string) => Promise<RemunerationLine[]>;
+        getRemunerationLineSubsidies: (lineId: string) => Promise<RemunerationLineSubsidy[]>;
       };
       fs: {
         saveFile: (fileName: string, buffer: ArrayBuffer) => Promise<string>;

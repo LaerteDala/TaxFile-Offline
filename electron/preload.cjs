@@ -67,13 +67,19 @@ contextBridge.exposeInMainWorld('electron', {
         getSubsidies: () => ipcRenderer.invoke('db:getSubsidies'),
         addSubsidy: (subsidy) => ipcRenderer.invoke('db:addSubsidy', subsidy),
         updateSubsidy: (subsidy) => ipcRenderer.invoke('db:updateSubsidy', subsidy),
-        deleteSubsidy: (id) => ipcRenderer.invoke('db:deleteSubsidy', id)
-    },
-
-    fs: {
-        saveFile: (fileName, buffer) => ipcRenderer.invoke('fs:saveFile', { fileName, buffer }),
-        openFile: (filePath) => ipcRenderer.invoke('fs:openFile', filePath),
-        readFile: (filePath) => ipcRenderer.invoke('fs:readFile', filePath),
+        deleteSubsidy: (id) => ipcRenderer.invoke('db:deleteSubsidy', id),
+        getRemunerationMaps: () => ipcRenderer.invoke('db:getRemunerationMaps'),
+        getRemunerationMap: (id) => ipcRenderer.invoke('db:getRemunerationMap', id),
+        addRemunerationMap: (map) => ipcRenderer.invoke('db:addRemunerationMap', map),
+        updateRemunerationMapStatus: (id, status) => ipcRenderer.invoke('db:updateRemunerationMapStatus', { id, status }),
+        deleteRemunerationMap: (id) => ipcRenderer.invoke('db:deleteRemunerationMap', id),
+        getRemunerationLines: (mapId) => ipcRenderer.invoke('db:getRemunerationLines', mapId),
+        addRemunerationLine: (line) => ipcRenderer.invoke('db:addRemunerationLine', line),
+        updateRemunerationLine: (line) => ipcRenderer.invoke('db:updateRemunerationLine', line),
+        deleteRemunerationLine: (id) => ipcRenderer.invoke('db:deleteRemunerationLine', id),
+        getRemunerationLineSubsidies: (lineId) => ipcRenderer.invoke('db:getRemunerationLineSubsidies', lineId),
+        addRemunerationLineSubsidy: (subsidy) => ipcRenderer.invoke('db:addRemunerationLineSubsidy', subsidy),
+        deleteRemunerationLineSubsidies: (lineId) => ipcRenderer.invoke('db:deleteRemunerationLineSubsidies', lineId),
     },
 
     auth: {

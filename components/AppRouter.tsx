@@ -32,6 +32,7 @@ import JobFunctions from './JobFunctions';
 import FiscalParameters from './FiscalParameters';
 import IRTTable from './IRTTable';
 import Subsidies from './Subsidies';
+import RemunerationMap from './RemunerationMap';
 import { FileText } from 'lucide-react';
 import { navigation } from '../config/navigation';
 
@@ -201,7 +202,6 @@ const AppRouter: React.FC<AppRouterProps> = ({
                 <FiscalParameters
                     documentTypes={documentTypes}
                     setDocumentTypes={setDocumentTypes}
-                    withholdingTypes={withholdingTypes}
                     setWithholdingTypes={setWithholdingTypes}
                     onBack={() => setCurrentView('settings')}
                 />
@@ -216,16 +216,10 @@ const AppRouter: React.FC<AppRouterProps> = ({
                     onBack={() => setCurrentView('settings')}
                 />
             )}
-            {currentView === 'tax_iva' && (
-                <TaxIVA
-                    invoices={invoices}
-                    suppliers={suppliers}
-                    clients={clients}
-                    documentTypes={documentTypes}
-                    withholdingTypes={withholdingTypes}
-                />
+            {currentView === 'irt_remuneration_map' && (
+                <RemunerationMap />
             )}
-            {['tax_is', 'tax_ivm', 'tax_iac', 'clients', 'contracts', 'irt_remuneration_map'].includes(currentView) && (
+            {['tax_is', 'tax_ivm', 'tax_iac', 'contracts'].includes(currentView) && (
                 <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
                     <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
                         {React.createElement(
@@ -244,7 +238,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
                     <p className="font-medium">Funcionalidades em breve...</p>
                 </div>
             )}
-        </div>
+        </div >
     );
 };
 
