@@ -32,6 +32,7 @@ const RemunerationMapEditor: React.FC<RemunerationMapEditorProps> = ({ mapId, on
     const [showEditLineModal, setShowEditLineModal] = useState(false);
     const [selectedStaffId, setSelectedStaffId] = useState('');
     const [editingLine, setEditingLine] = useState<RemunerationLine | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Edit Form State
     const [formData, setFormData] = useState<PayrollInput>({
@@ -103,7 +104,8 @@ const RemunerationMapEditor: React.FC<RemunerationMapEditorProps> = ({ mapId, on
                 manualExcessValue: 0
             };
 
-            const result = calculatePayroll(input, allSubsidies, irtScales, !staffMember.notSubjectToSS, !staffMember.irtExempt);
+            const isSubjectToINSS = !staffMember.notSubjectToSS || staffMember.isRetired;
+            const result = calculatePayroll(input, allSubsidies, irtScales, isSubjectToINSS, !staffMember.irtExempt, staffMember.isRetired);
 
             await window.electron.db.addRemunerationLine({
                 ...newLine,
@@ -136,11 +138,11 @@ const RemunerationMapEditor: React.FC<RemunerationMapEditorProps> = ({ mapId, on
         if (!editingLine || !mapData) return;
 
         const staffMember = allStaff.find(s => s.id === editingLine.staff_id);
-        const isSubjectToINSS = staffMember ? !staffMember.notSubjectToSS : true;
+        const isSubjectToINSS = staffMember ? (!staffMember.notSubjectToSS || staffMember.isRetired) : true;
 
         const isSubjectToIRT = staffMember ? !staffMember.irtExempt : true;
 
-        const result = calculatePayroll(formData, allSubsidies, irtScales, isSubjectToINSS, isSubjectToIRT);
+        const result = calculatePayroll(formData, allSubsidies, irtScales, isSubjectToINSS, isSubjectToIRT, staffMember?.isRetired);
 
         try {
             // Update Line
@@ -200,15 +202,35 @@ const RemunerationMapEditor: React.FC<RemunerationMapEditorProps> = ({ mapId, on
     const previewResult = useMemo(() => {
         if (!editingLine) return null;
         const staffMember = allStaff.find(s => s.id === editingLine.staff_id);
-        const isSubjectToINSS = staffMember ? !staffMember.notSubjectToSS : true;
+        const isSubjectToINSS = staffMember ? (!staffMember.notSubjectToSS || staffMember.isRetired) : true;
         const isSubjectToIRT = staffMember ? !staffMember.irtExempt : true;
-        return calculatePayroll(formData, allSubsidies, irtScales, isSubjectToINSS, isSubjectToIRT);
+        return calculatePayroll(formData, allSubsidies, irtScales, isSubjectToINSS, isSubjectToIRT, staffMember?.isRetired);
     }, [formData, editingLine, allSubsidies, irtScales, allStaff]);
 
     const formatCurrency = (val: number) => new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA' }).format(val);
 
     if (loading) return <div className="p-8 text-center">Carregando mapa...</div>;
     if (!mapData) return <div className="p-8 text-center">Mapa não encontrado.</div>;
+
+    const filteredLines = mapData.lines?.filter(line =>
+        line.staff_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [];
+
+    const totals = filteredLines.reduce((acc, line) => ({
+        base_salary: acc.base_salary + line.base_salary,
+        subsidies: acc.subsidies + (line.total_subject_subsidies || 0) + (line.total_non_subject_subsidies || 0),
+        gross_salary: acc.gross_salary + line.gross_salary,
+        inss_value: acc.inss_value + line.inss_value,
+        irt_value: acc.irt_value + line.irt_value,
+        net_salary: acc.net_salary + line.net_salary
+    }), {
+        base_salary: 0,
+        subsidies: 0,
+        gross_salary: 0,
+        inss_value: 0,
+        irt_value: 0,
+        net_salary: 0
+    });
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -234,6 +256,18 @@ const RemunerationMapEditor: React.FC<RemunerationMapEditorProps> = ({ mapId, on
                 </div>
             </div>
 
+            {/* Search */}
+            <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <Search className="text-slate-400" size={20} />
+                <input
+                    type="text"
+                    placeholder="Pesquisar funcionário..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1 bg-transparent outline-none text-slate-700 placeholder-slate-400"
+                />
+            </div>
+
             {/* Table */}
             <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
                 <div className="overflow-x-auto">
@@ -251,7 +285,7 @@ const RemunerationMapEditor: React.FC<RemunerationMapEditorProps> = ({ mapId, on
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {mapData.lines?.map((line) => (
+                            {filteredLines.map((line) => (
                                 <tr key={line.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-6 py-4 font-medium text-slate-800">{line.staff_name}</td>
                                     <td className="px-6 py-4 text-right text-slate-600">{formatCurrency(line.base_salary)}</td>
@@ -275,6 +309,18 @@ const RemunerationMapEditor: React.FC<RemunerationMapEditorProps> = ({ mapId, on
                                 </tr>
                             ))}
                         </tbody>
+                        <tfoot className="bg-slate-50 border-t border-slate-200 font-bold">
+                            <tr>
+                                <td className="px-6 py-4 text-slate-800">TOTAIS</td>
+                                <td className="px-6 py-4 text-right text-slate-800">{formatCurrency(totals.base_salary)}</td>
+                                <td className="px-6 py-4 text-right text-slate-800">{formatCurrency(totals.subsidies)}</td>
+                                <td className="px-6 py-4 text-right text-slate-800">{formatCurrency(totals.gross_salary)}</td>
+                                <td className="px-6 py-4 text-right text-slate-800">{formatCurrency(totals.inss_value)}</td>
+                                <td className="px-6 py-4 text-right text-slate-800">{formatCurrency(totals.irt_value)}</td>
+                                <td className="px-6 py-4 text-right text-emerald-600">{formatCurrency(totals.net_salary)}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>

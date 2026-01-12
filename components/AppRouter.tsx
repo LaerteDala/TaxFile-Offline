@@ -33,6 +33,8 @@ import FiscalParameters from './FiscalParameters';
 import IRTTable from './IRTTable';
 import Subsidies from './Subsidies';
 import RemunerationMap from './RemunerationMap';
+import SocialSecurityRemunerations from './SocialSecurityRemunerations';
+import SocialSecurityReports from './SocialSecurityReports';
 import { FileText } from 'lucide-react';
 import { navigation } from '../config/navigation';
 
@@ -218,6 +220,12 @@ const AppRouter: React.FC<AppRouterProps> = ({
             )}
             {currentView === 'irt_remuneration_map' && (
                 <RemunerationMap />
+            )}
+            {currentView === 'social_security_remunerations' && (
+                <SocialSecurityRemunerations />
+            )}
+            {currentView === 'social_security_reports' && (
+                <SocialSecurityReports />
             )}
             {['tax_is', 'tax_ivm', 'tax_iac', 'contracts'].includes(currentView) && (
                 <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">

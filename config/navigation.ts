@@ -29,7 +29,8 @@ import {
     CreditCard,
     Store,
     Briefcase,
-    LayoutGrid
+    LayoutGrid,
+    ShieldCheck
 } from 'lucide-react';
 import { View } from '../types';
 
@@ -123,6 +124,15 @@ export const navigation: NavItem[] = [
             { name: 'Valores Retidos', icon: Coins, view: 'irt_withheld_values' as View },
             { name: 'Mapa de Remunerações', icon: FileSpreadsheet, view: 'irt_remuneration_map' as View },
             { name: 'Relatórios', icon: BarChart3, view: 'irt_reports' as View },
+        ]
+    },
+    {
+        name: 'Segurança Social',
+        icon: ShieldCheck,
+        id: 'social_security',
+        subItems: [
+            { name: 'Folha de Remunerações', icon: FileSpreadsheet, view: 'social_security_remunerations' as View },
+            { name: 'Relatórios', icon: BarChart3, view: 'social_security_reports' as View },
         ]
     },
     {

@@ -263,7 +263,7 @@ export interface RemunerationLineSubsidy {
   amount: number;
 }
 
-export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'fiscal_parameters' | 'irt_table' | 'subsidies' | 'irt_withholding_map' | 'irt_remuneration_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities' | 'sales' | 'purchases' | 'commercial_cc' | 'company_settings' | 'ii_withheld_values' | 'irt_withheld_values' | 'ip_withheld_values' | 'departments' | 'job_functions';
+export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'fiscal_parameters' | 'irt_table' | 'subsidies' | 'irt_withholding_map' | 'irt_remuneration_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities' | 'sales' | 'purchases' | 'commercial_cc' | 'company_settings' | 'ii_withheld_values' | 'irt_withheld_values' | 'ip_withheld_values' | 'departments' | 'job_functions' | 'social_security_remunerations' | 'social_security_reports';
 
 declare global {
   interface Window {
