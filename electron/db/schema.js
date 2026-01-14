@@ -262,6 +262,9 @@ export function initDb() {
     if (!tableInfoStaff.some(col => col.name === 'is_retired')) db.exec("ALTER TABLE staff ADD COLUMN is_retired INTEGER DEFAULT 0;");
     if (!tableInfoStaff.some(col => col.name === 'ss_contribution_rate')) db.exec("ALTER TABLE staff ADD COLUMN ss_contribution_rate REAL DEFAULT 3;");
 
+    const tableInfoArchives = db.prepare("PRAGMA table_info(archives)").all();
+    if (!tableInfoArchives.some(col => col.name === 'date')) db.exec("ALTER TABLE archives ADD COLUMN date TEXT;");
+
     // Add default document types if none exist
     const docTypeCount = db.prepare('SELECT count(*) as count FROM document_types').get().count;
     if (docTypeCount === 0) {

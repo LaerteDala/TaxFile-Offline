@@ -21,7 +21,8 @@ import {
     Calendar,
     User,
     Tag,
-    Info
+    Info,
+    Edit
 } from 'lucide-react';
 import { Archive, Supplier, Client, Staff } from '../types';
 
@@ -242,12 +243,23 @@ const DocumentsArchive: React.FC = () => {
                     {breadcrumbs.map((crumb, index) => (
                         <React.Fragment key={crumb.id}>
                             <ChevronRight size={16} className="text-slate-400" />
-                            <button
-                                onClick={() => setCurrentParentId(crumb.id)}
-                                className={`hover:text-blue-600 transition-colors ${index === breadcrumbs.length - 1 ? 'text-blue-600 font-bold' : ''}`}
-                            >
-                                {crumb.description}
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setCurrentParentId(crumb.id)}
+                                    className={`hover:text-blue-600 transition-colors ${index === breadcrumbs.length - 1 ? 'text-blue-600 font-bold' : ''}`}
+                                >
+                                    {crumb.description}
+                                </button>
+                                {index === breadcrumbs.length - 1 && (
+                                    <button
+                                        onClick={() => openModal(crumb)}
+                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 transition-all"
+                                        title="Editar este arquivo"
+                                    >
+                                        <Edit size={14} />
+                                    </button>
+                                )}
+                            </div>
                         </React.Fragment>
                     ))}
                 </div>
@@ -342,7 +354,7 @@ const DocumentsArchive: React.FC = () => {
                                                     className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-all"
                                                     title="Editar"
                                                 >
-                                                    <FileText size={18} />
+                                                    <Edit size={18} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(archive.id)}
