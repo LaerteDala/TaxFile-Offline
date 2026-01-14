@@ -263,7 +263,38 @@ export interface RemunerationLineSubsidy {
   amount: number;
 }
 
-export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'fiscal_parameters' | 'irt_table' | 'subsidies' | 'irt_withholding_map' | 'irt_remuneration_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities' | 'sales' | 'purchases' | 'commercial_cc' | 'company_settings' | 'ii_withheld_values' | 'irt_withheld_values' | 'ip_withheld_values' | 'departments' | 'job_functions' | 'social_security_remunerations' | 'social_security_reports';
+export interface Archive {
+  id: string;
+  code?: string;
+  description: string;
+  period?: string;
+  date?: string;
+  notes?: string;
+  parent_id?: string;
+  created_at?: string;
+}
+
+export interface GeneralDocument {
+  id: string;
+  description: string;
+  issue_date?: string;
+  expiry_date?: string;
+  related_entity_type?: string;
+  related_entity_id?: string;
+  archive_id?: string;
+  archive_description?: string;
+  created_at?: string;
+}
+
+export interface GeneralDocumentAttachment {
+  id: string;
+  document_id: string;
+  title: string;
+  file_path: string;
+  created_at?: string;
+}
+
+export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'fiscal_parameters' | 'irt_table' | 'subsidies' | 'irt_withholding_map' | 'irt_remuneration_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities' | 'sales' | 'purchases' | 'commercial_cc' | 'company_settings' | 'ii_withheld_values' | 'irt_withheld_values' | 'ip_withheld_values' | 'departments' | 'job_functions' | 'social_security_remunerations' | 'social_security_reports' | 'documents_general' | 'documents_archive';
 
 declare global {
   interface Window {
@@ -350,11 +381,31 @@ declare global {
         deleteRemunerationLineSubsidies: (lineId: string) => Promise<any>;
         getRemunerationLines: (mapId: string) => Promise<RemunerationLine[]>;
         getRemunerationLineSubsidies: (lineId: string) => Promise<RemunerationLineSubsidy[]>;
+
+        getArchives: () => Promise<Archive[]>;
+        addArchive: (archive: any) => Promise<any>;
+        updateArchive: (archive: any) => Promise<any>;
+        deleteArchive: (id: string) => Promise<any>;
+
+        getGeneralDocuments: () => Promise<GeneralDocument[]>;
+        addGeneralDocument: (doc: any) => Promise<any>;
+        updateGeneralDocument: (doc: any) => Promise<any>;
+        deleteGeneralDocument: (id: string) => Promise<any>;
+
+        getGeneralDocumentAttachments: (docId: string) => Promise<GeneralDocumentAttachment[]>;
+        addGeneralDocumentAttachment: (attachment: any) => Promise<any>;
+        deleteGeneralDocumentAttachment: (id: string) => Promise<any>;
+
+        getDocumentsInArchive: (archiveId: string) => Promise<any[]>;
+        searchLinkableDocuments: (filters: { query?: string; docType?: string; entityType?: string }) => Promise<any[]>;
+        linkDocumentToArchive: (docType: string, docId: string, archiveId: string) => Promise<any>;
+        unlinkDocumentFromArchive: (docType: string, docId: string) => Promise<any>;
       };
       fs: {
         saveFile: (fileName: string, buffer: ArrayBuffer) => Promise<string>;
         openFile: (filePath: string) => Promise<void>;
         readFile: (filePath: string) => Promise<Uint8Array | null>;
+        downloadFile: (filePath: string, fileName: string) => Promise<string | undefined>;
       };
       auth: {
         login: (email: string, password: string) => Promise<any>;

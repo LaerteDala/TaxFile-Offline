@@ -36,15 +36,13 @@ export function initDb() {
             notes TEXT,
             has_pdf INTEGER DEFAULT 0,
             pdf_path TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
-            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
-            FOREIGN KEY (document_type_id) REFERENCES document_types(id) ON DELETE SET NULL
+            archive_id TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS tax_lines (
             id TEXT PRIMARY KEY,
-            invoice_id TEXT,
+            invoice_id TEXT NOT NULL,
             taxable_value REAL DEFAULT 0,
             rate REAL DEFAULT 0,
             supported_vat REAL DEFAULT 0,
@@ -247,13 +245,10 @@ export function initDb() {
     if (!tableInfoSuppliers.some(col => col.name === 'municipality_id')) db.exec("ALTER TABLE suppliers ADD COLUMN municipality_id TEXT;");
     if (!tableInfoSuppliers.some(col => col.name === 'conformity_declaration_number')) db.exec("ALTER TABLE suppliers ADD COLUMN conformity_declaration_number TEXT;");
 
-    const tableInfoClients = db.prepare("PRAGMA table_info(clients)").all();
-    if (!tableInfoClients.some(col => col.name === 'type')) db.exec("ALTER TABLE clients ADD COLUMN type TEXT DEFAULT 'Normal';");
-    if (!tableInfoClients.some(col => col.name === 'cative_vat_rate')) db.exec("ALTER TABLE clients ADD COLUMN cative_vat_rate REAL DEFAULT 0;");
-
     const tableInfoInvoices = db.prepare("PRAGMA table_info(invoices)").all();
     if (!tableInfoInvoices.some(col => col.name === 'type')) db.exec("ALTER TABLE invoices ADD COLUMN type TEXT DEFAULT 'PURCHASE';");
     if (!tableInfoInvoices.some(col => col.name === 'client_id')) db.exec("ALTER TABLE invoices ADD COLUMN client_id TEXT;");
+    if (!tableInfoInvoices.some(col => col.name === 'archive_id')) db.exec("ALTER TABLE invoices ADD COLUMN archive_id TEXT;");
 
     const tableInfoTaxLines = db.prepare("PRAGMA table_info(tax_lines)").all();
     if (!tableInfoTaxLines.some(col => col.name === 'liquidated_vat')) db.exec("ALTER TABLE tax_lines ADD COLUMN liquidated_vat REAL DEFAULT 0;");
@@ -274,6 +269,13 @@ export function initDb() {
         insertDocType.run(crypto.randomUUID(), 'FT', 'Factura');
         insertDocType.run(crypto.randomUUID(), 'FR', 'Factura Recibo');
         insertDocType.run(crypto.randomUUID(), 'RC', 'Recibo');
+        insertDocType.run(crypto.randomUUID(), 'NC', 'Nota de Crédito');
+    }
+
+    // Migration: Ensure NC (Nota de Crédito) exists
+    const ncExists = db.prepare('SELECT count(*) as count FROM document_types WHERE code = ?').get('NC').count;
+    if (ncExists === 0) {
+        db.prepare('INSERT INTO document_types (id, code, name) VALUES (?, ?, ?)').run(crypto.randomUUID(), 'NC', 'Nota de Crédito');
     }
 
     // Add default withholding types if none exist
@@ -400,6 +402,39 @@ export function initDb() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(line_id) REFERENCES remuneration_lines(id) ON DELETE CASCADE,
             FOREIGN KEY(subsidy_id) REFERENCES subsidies(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS archives (
+            id TEXT PRIMARY KEY,
+            code TEXT,
+            description TEXT NOT NULL,
+            period TEXT, -- MM-YYYY
+            date TEXT, -- DD-MM-YYYY
+            notes TEXT,
+            parent_id TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (parent_id) REFERENCES archives(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS general_documents (
+            id TEXT PRIMARY KEY,
+            description TEXT NOT NULL,
+            issue_date TEXT,
+            expiry_date TEXT,
+            related_entity_type TEXT, -- 'supplier', 'client', 'staff', 'invoice', 'liquidation_note', etc.
+            related_entity_id TEXT,
+            archive_id TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (archive_id) REFERENCES archives(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS general_document_attachments (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (document_id) REFERENCES general_documents(id) ON DELETE CASCADE
         );
     `);
 

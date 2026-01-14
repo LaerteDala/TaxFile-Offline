@@ -57,6 +57,7 @@ ipcMain.handle('db:deleteInvoice', async (_, id) => dbOps.deleteInvoice(id));
 ipcMain.handle('fs:saveFile', async (_, { fileName, buffer }) => dbOps.saveFile(fileName, buffer));
 ipcMain.handle('fs:openFile', async (_, filePath) => dbOps.openFile(filePath));
 ipcMain.handle('fs:readFile', async (_, filePath) => dbOps.readFile(filePath));
+ipcMain.handle('fs:downloadFile', async (_, data) => dbOps.downloadFile(data));
 ipcMain.handle('db:getCCDocuments', async () => dbOps.getCCDocuments());
 ipcMain.handle('db:addCCDocument', async (_, doc) => dbOps.addCCDocument(doc));
 ipcMain.handle('db:updateCCDocument', async (_, doc) => dbOps.updateCCDocument(doc));
@@ -132,6 +133,27 @@ ipcMain.handle('db:deleteRemunerationLine', async (_, id) => dbOps.deleteRemuner
 
 ipcMain.handle('db:addRemunerationLineSubsidy', async (_, subsidy) => dbOps.addRemunerationLineSubsidy(subsidy));
 ipcMain.handle('db:deleteRemunerationLineSubsidies', async (_, lineId) => dbOps.deleteRemunerationLineSubsidies(lineId));
+
+// Archives
+ipcMain.handle('db:getArchives', async () => dbOps.getArchives());
+ipcMain.handle('db:addArchive', async (_, archive) => dbOps.addArchive(archive));
+ipcMain.handle('db:updateArchive', async (_, archive) => dbOps.updateArchive(archive));
+ipcMain.handle('db:deleteArchive', async (_, id) => dbOps.deleteArchive(id));
+
+// General Documents
+ipcMain.handle('db:getGeneralDocuments', async () => dbOps.getGeneralDocuments());
+ipcMain.handle('db:addGeneralDocument', async (_, doc) => dbOps.addGeneralDocument(doc));
+ipcMain.handle('db:updateGeneralDocument', async (_, doc) => dbOps.updateGeneralDocument(doc));
+ipcMain.handle('db:deleteGeneralDocument', async (_, id) => dbOps.deleteGeneralDocument(id));
+
+ipcMain.handle('db:getGeneralDocumentAttachments', async (_, docId) => dbOps.getGeneralDocumentAttachments(docId));
+ipcMain.handle('db:addGeneralDocumentAttachment', async (_, attachment) => dbOps.addGeneralDocumentAttachment(attachment));
+ipcMain.handle('db:deleteGeneralDocumentAttachment', async (_, id) => dbOps.deleteGeneralDocumentAttachment(id));
+
+ipcMain.handle('db:getDocumentsInArchive', async (_, archiveId) => dbOps.getDocumentsInArchive(archiveId));
+ipcMain.handle('db:searchLinkableDocuments', async (_, filters) => dbOps.searchLinkableDocuments(filters));
+ipcMain.handle('db:linkDocumentToArchive', async (_, { docType, docId, archiveId }) => dbOps.linkDocumentToArchive(docType, docId, archiveId));
+ipcMain.handle('db:unlinkDocumentFromArchive', async (_, { docType, docId }) => dbOps.unlinkDocumentFromArchive(docType, docId));
 
 ipcMain.handle('auth:login', async (_, { email, password }) => dbOps.login(email, password));
 

@@ -80,9 +80,38 @@ contextBridge.exposeInMainWorld('electron', {
         getRemunerationLineSubsidies: (lineId) => ipcRenderer.invoke('db:getRemunerationLineSubsidies', lineId),
         addRemunerationLineSubsidy: (subsidy) => ipcRenderer.invoke('db:addRemunerationLineSubsidy', subsidy),
         deleteRemunerationLineSubsidies: (lineId) => ipcRenderer.invoke('db:deleteRemunerationLineSubsidies', lineId),
+
+        // Archives
+        getArchives: () => ipcRenderer.invoke('db:getArchives'),
+        addArchive: (archive) => ipcRenderer.invoke('db:addArchive', archive),
+        updateArchive: (archive) => ipcRenderer.invoke('db:updateArchive', archive),
+        deleteArchive: (id) => ipcRenderer.invoke('db:deleteArchive', id),
+
+        // General Documents
+        getGeneralDocuments: () => ipcRenderer.invoke('db:getGeneralDocuments'),
+        addGeneralDocument: (doc) => ipcRenderer.invoke('db:addGeneralDocument', doc),
+        updateGeneralDocument: (doc) => ipcRenderer.invoke('db:updateGeneralDocument', doc),
+        deleteGeneralDocument: (id) => ipcRenderer.invoke('db:deleteGeneralDocument', id),
+
+        // General Document Attachments
+        getGeneralDocumentAttachments: (docId) => ipcRenderer.invoke('db:getGeneralDocumentAttachments', docId),
+        addGeneralDocumentAttachment: (attachment) => ipcRenderer.invoke('db:addGeneralDocumentAttachment', attachment),
+        deleteGeneralDocumentAttachment: (id) => ipcRenderer.invoke('db:deleteGeneralDocumentAttachment', id),
+
+        // Document Linking
+        getDocumentsInArchive: (archiveId) => ipcRenderer.invoke('db:getDocumentsInArchive', archiveId),
+        searchLinkableDocuments: (filters) => ipcRenderer.invoke('db:searchLinkableDocuments', filters),
+        linkDocumentToArchive: (docType, docId, archiveId) => ipcRenderer.invoke('db:linkDocumentToArchive', { docType, docId, archiveId }),
+        unlinkDocumentFromArchive: (docType, docId) => ipcRenderer.invoke('db:unlinkDocumentFromArchive', { docType, docId }),
     },
 
     auth: {
         login: (email, password) => ipcRenderer.invoke('auth:login', { email, password }),
+    },
+    fs: {
+        saveFile: (fileName, buffer) => ipcRenderer.invoke('fs:saveFile', { fileName, buffer }),
+        openFile: (filePath) => ipcRenderer.invoke('fs:openFile', filePath),
+        readFile: (filePath) => ipcRenderer.invoke('fs:readFile', filePath),
+        downloadFile: (filePath, fileName) => ipcRenderer.invoke('fs:downloadFile', { filePath, fileName }),
     }
 });

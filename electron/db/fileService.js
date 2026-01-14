@@ -22,4 +22,17 @@ export const fileService = {
         }
         return null;
     },
+    downloadFile: async ({ filePath, fileName }) => {
+        if (!fs.existsSync(filePath)) return;
+
+        const { filePath: savePath } = await electron.dialog.showSaveDialog({
+            defaultPath: fileName,
+            title: 'Guardar Anexo'
+        });
+
+        if (savePath) {
+            fs.copyFileSync(filePath, savePath);
+            return savePath;
+        }
+    }
 };

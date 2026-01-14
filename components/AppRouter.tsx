@@ -35,6 +35,8 @@ import Subsidies from './Subsidies';
 import RemunerationMap from './RemunerationMap';
 import SocialSecurityRemunerations from './SocialSecurityRemunerations';
 import SocialSecurityReports from './SocialSecurityReports';
+import DocumentsArchive from './DocumentsArchive';
+import DocumentsGeneral from './DocumentsGeneral';
 import { FileText } from 'lucide-react';
 import { navigation } from '../config/navigation';
 
@@ -227,6 +229,8 @@ const AppRouter: React.FC<AppRouterProps> = ({
             {currentView === 'social_security_reports' && (
                 <SocialSecurityReports />
             )}
+            {currentView === 'documents_archive' && <DocumentsArchive />}
+            {currentView === 'documents_general' && <DocumentsGeneral />}
             {['tax_is', 'tax_ivm', 'tax_iac', 'contracts'].includes(currentView) && (
                 <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
                     <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">

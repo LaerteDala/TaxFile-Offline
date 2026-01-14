@@ -90,6 +90,8 @@ export const navigation: NavItem[] = [
         icon: Folder,
         id: 'documentos',
         subItems: [
+            { name: 'Geral', icon: FileText, view: 'documents_general' as View },
+            { name: 'Arquivo', icon: Folder, view: 'documents_archive' as View },
             { name: 'Facturas', icon: FileText, view: 'invoices' as View },
             { name: 'Contratos', icon: FileSignature, view: 'contracts' as View },
         ]
@@ -109,7 +111,7 @@ export const navigation: NavItem[] = [
         icon: Landmark,
         id: 'tax_ii',
         subItems: [
-            { name: 'Mapa de Retenção', icon: FileSpreadsheet, view: 'ii_withholding_map' as View },
+            { name: 'M. Retenção', icon: FileSpreadsheet, view: 'ii_withholding_map' as View },
             { name: 'Valores Retidos', icon: Coins, view: 'ii_withheld_values' as View },
             { name: 'Relatórios', icon: BarChart3, view: 'ii_reports' as View },
         ]
@@ -120,9 +122,9 @@ export const navigation: NavItem[] = [
         icon: Percent,
         id: 'tax_irt',
         subItems: [
-            { name: 'Mapa de Retenção', icon: FileSpreadsheet, view: 'irt_withholding_map' as View },
+            { name: 'M. Retenção', icon: FileSpreadsheet, view: 'irt_withholding_map' as View },
             { name: 'Valores Retidos', icon: Coins, view: 'irt_withheld_values' as View },
-            { name: 'Mapa de Remunerações', icon: FileSpreadsheet, view: 'irt_remuneration_map' as View },
+            { name: 'M.Remunerações', icon: FileSpreadsheet, view: 'irt_remuneration_map' as View },
             { name: 'Relatórios', icon: BarChart3, view: 'irt_reports' as View },
         ]
     },
@@ -131,7 +133,7 @@ export const navigation: NavItem[] = [
         icon: ShieldCheck,
         id: 'social_security',
         subItems: [
-            { name: 'Folha de Remunerações', icon: FileSpreadsheet, view: 'social_security_remunerations' as View },
+            { name: 'F. Remunerações', icon: FileSpreadsheet, view: 'social_security_remunerations' as View },
             { name: 'Relatórios', icon: BarChart3, view: 'social_security_reports' as View },
         ]
     },
@@ -148,7 +150,7 @@ export const navigation: NavItem[] = [
         icon: Home,
         id: 'tax_ip',
         subItems: [
-            { name: 'Mapa de Retenção', icon: FileSpreadsheet, view: 'ip_withholding_map' as View },
+            { name: 'M. deRetenção', icon: FileSpreadsheet, view: 'ip_withholding_map' as View },
             { name: 'Valores Retidos', icon: Coins, view: 'ip_withheld_values' as View },
             { name: 'Relatórios', icon: BarChart3, view: 'ip_reports' as View },
         ]

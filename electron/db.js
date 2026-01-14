@@ -10,6 +10,7 @@ import { authService } from './db/authService.js';
 import { fileService } from './db/fileService.js';
 
 import { remunerationRepo } from './db/repositories/remunerationRepo.js';
+import { documentRepo } from './db/repositories/documentRepo.js';
 
 // Initialize database schema
 initDb();
@@ -26,5 +27,6 @@ export const dbOps = {
     ...staffRepo,
     ...authService,
     ...fileService,
-    ...remunerationRepo
+    ...remunerationRepo,
+    ...documentRepo
 };
