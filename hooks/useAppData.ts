@@ -33,6 +33,7 @@ export const useAppData = () => {
     const [selectedGeneralDocument, setSelectedGeneralDocument] = useState<GeneralDocument | null>(null);
 
     const hasLoadedInitialData = useRef(false);
+    const isCheckingDeadlines = useRef(false);
 
     const fetchData = async (isSilent = false) => {
         if (!isSilent) setIsLoading(true);
@@ -129,6 +130,8 @@ export const useAppData = () => {
     };
 
     const checkDeadlinesAndNotify = async () => {
+        if (isCheckingDeadlines.current) return;
+        isCheckingDeadlines.current = true;
         try {
             const upcoming = await window.electron.db.getUpcomingDeadlines();
             const currentNotifications = await window.electron.db.getNotifications();
@@ -157,7 +160,7 @@ export const useAppData = () => {
                     // Check if notification already exists for this document and state
                     const exists = currentNotifications.some(n =>
                         n.title === title &&
-                        new Date(n.created_at).toDateString() === today.toDateString()
+                        (new Date(n.created_at).toDateString() === today.toDateString() || n.is_read === 0)
                     );
 
                     if (!exists) {
@@ -177,6 +180,8 @@ export const useAppData = () => {
             setNotifications(updatedNotifications);
         } catch (error) {
             console.error('Error checking deadlines:', error);
+        } finally {
+            isCheckingDeadlines.current = false;
         }
     };
 

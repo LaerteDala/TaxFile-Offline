@@ -102,7 +102,9 @@ contextBridge.exposeInMainWorld('electron', {
         getDocumentsInArchive: (archiveId) => ipcRenderer.invoke('db:getDocumentsInArchive', archiveId),
         searchLinkableDocuments: (filters) => ipcRenderer.invoke('db:searchLinkableDocuments', filters),
         linkDocumentToArchive: (docType, docId, archiveId) => ipcRenderer.invoke('db:linkDocumentToArchive', { docType, docId, archiveId }),
-        unlinkDocumentFromArchive: (docType, docId) => ipcRenderer.invoke('db:unlinkDocumentFromArchive', { docType, docId }),
+        unlinkDocumentFromArchive: (docType, docId, archiveId) => ipcRenderer.invoke('db:unlinkDocumentFromArchive', { docType, docId, archiveId }),
+
+        // Deadlines & Notifications
         getDeadlineConfigs: () => ipcRenderer.invoke('db:getDeadlineConfigs'),
         updateDeadlineConfig: (config) => ipcRenderer.invoke('db:updateDeadlineConfig', config),
         getUpcomingDeadlines: () => ipcRenderer.invoke('db:getUpcomingDeadlines'),

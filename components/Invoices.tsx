@@ -3,9 +3,9 @@ import React, { useState, useMemo, useRef } from 'react';
 import {
   Plus, Search, Trash2, FilePlus2, Upload, ChevronLeft, AlertCircle,
   FileCheck2, Calendar, Layers, Loader2, X, Building2, Hash, FileText,
-  Eye, Edit3, Save, Download, FileX2, CheckSquare, Square
+  Eye, Edit3, Save, Download, FileX2, CheckSquare, Square, Folder
 } from 'lucide-react';
-import { Invoice, Supplier, Client, TaxLine, DocumentType, WithholdingType, CompanyInfo } from '../types';
+import { Invoice, Supplier, Client, TaxLine, DocumentType, WithholdingType, CompanyInfo, Archive } from '../types';
 
 interface InvoicesProps {
   invoices: Invoice[];
@@ -39,11 +39,15 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
   const [taxLines, setTaxLines] = useState<TaxLine[]>([
     { id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, liquidatedVat: 0, cativeVat: 0, isService: false, withholdingAmount: 0 }
   ]);
+  const [archiveIds, setArchiveIds] = useState<string[]>([]);
+  const [archives, setArchives] = useState<Archive[]>([]);
+  const [archiveSearch, setArchiveSearch] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
 
   React.useEffect(() => {
     window.electron.db.getCompanyInfo().then(setCompanyInfo);
+    window.electron.db.getArchives().then(setArchives);
   }, []);
 
   React.useEffect(() => {
@@ -153,6 +157,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
     setDocNumber(inv.documentNumber);
     setNotes(inv.notes || '');
     setTaxLines(inv.lines);
+    setArchiveIds(inv.archiveIds || []);
     setSelectedFile(null);
     setShowCreator(true);
   };
@@ -205,6 +210,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
         dueDate: dueDate || null,
         documentNumber: docNumber,
         notes,
+        archiveIds,
         hasPdf: !!storagePath,
         pdfPath: storagePath,
         totalTaxable: totals.taxable,
@@ -255,6 +261,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
     setDocNumber('');
     setDueDate('');
     setNotes('');
+    setArchiveIds([]);
     setSelectedFile(null);
     setTaxLines([{ id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, liquidatedVat: 0, cativeVat: 0, isService: false, withholdingAmount: 0 }]);
   };
@@ -419,7 +426,53 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col h-full lg:col-span-2">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <Layers size={12} className="text-blue-600" /> ARQUIVOS (DOSSIERS)
+                </label>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {archiveIds.map(id => {
+                      const archive = archives.find(a => a.id === id);
+                      return (
+                        <div key={id} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-lg text-[10px] font-bold border border-blue-100">
+                          <Folder size={10} />
+                          {archive ? archive.description : '---'}
+                          <button type="button" onClick={() => setArchiveIds(archiveIds.filter(aid => aid !== id))} className="hover:text-red-500">
+                            <X size={10} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Pesquisar arquivo..."
+                    value={archiveSearch}
+                    onChange={(e) => setArchiveSearch(e.target.value)}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 text-xs"
+                  />
+                  {archiveSearch && (
+                    <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-sm">
+                      {archives.filter(a => a.description.toLowerCase().includes(archiveSearch.toLowerCase())).map(a => (
+                        <button
+                          key={a.id} type="button"
+                          onClick={() => {
+                            if (!archiveIds.includes(a.id)) setArchiveIds([...archiveIds, a.id]);
+                            setArchiveSearch('');
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-slate-50 text-[10px] font-bold border-b border-slate-100 last:border-0"
+                        >
+                          {a.description}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col h-full lg:col-span-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">NOTAS ADICIONAIS</label>
               <textarea
                 value={notes}
@@ -611,12 +664,15 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
                         : (clients.find(c => c.id === i.clientId)?.name || 'N/A')
                       }
                     </p>
-                    <p className="text-[10px] font-medium text-slate-500 uppercase tracking-tighter">
-                      NIF: {i.type === 'PURCHASE'
-                        ? (suppliers.find(s => s.id === i.supplierId)?.nif || '---')
-                        : (clients.find(c => c.id === i.clientId)?.nif || '---')
-                      }
-                    </p>
+                    {i.archives && i.archives.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {i.archives.map(a => (
+                          <span key={a.id} className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-[9px] font-bold border border-amber-100 flex items-center gap-1">
+                            <Folder size={8} /> {a.description}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="px-8 py-5 text-center"><span className="text-sm font-semibold text-slate-600">{i.date}</span></td>
                   <td className="px-8 py-5 text-center"><span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-mono font-black border border-slate-200 group-hover:bg-white transition-colors">{i.documentNumber}</span></td>

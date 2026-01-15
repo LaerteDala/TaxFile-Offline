@@ -118,7 +118,7 @@ const DocumentsArchive: React.FC = () => {
     const handleUnlinkDocument = async (docType: string, docId: string) => {
         try {
             if (confirm('Remover este documento do arquivo?')) {
-                await window.electron.db.unlinkDocumentFromArchive(docType, docId);
+                await window.electron.db.unlinkDocumentFromArchive(docType, docId, currentParentId!);
                 loadLinkedDocuments();
                 if (selectedDoc?.id === docId) setSelectedDoc(null);
             }

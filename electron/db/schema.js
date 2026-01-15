@@ -253,6 +253,15 @@ export function initDb() {
             link TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS document_archives (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL,
+            archive_id TEXT NOT NULL,
+            document_type TEXT NOT NULL, -- 'invoice' or 'general'
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(document_id, archive_id, document_type)
+        );
     `);
 
     // Migrations: Add columns if they don't exist
@@ -283,6 +292,24 @@ export function initDb() {
 
     const tableInfoArchives = db.prepare("PRAGMA table_info(archives)").all();
     if (!tableInfoArchives.some(col => col.name === 'date')) db.exec("ALTER TABLE archives ADD COLUMN date TEXT;");
+
+    // Migration: Move existing archive_id to document_archives
+    const docArchivesCount = db.prepare('SELECT count(*) as count FROM document_archives').get().count;
+    if (docArchivesCount === 0) {
+        // Migrate Invoices
+        const invoicesWithArchive = db.prepare('SELECT id, archive_id FROM invoices WHERE archive_id IS NOT NULL').all();
+        const insertDocArchive = db.prepare('INSERT INTO document_archives (id, document_id, archive_id, document_type) VALUES (?, ?, ?, ?)');
+
+        invoicesWithArchive.forEach(inv => {
+            insertDocArchive.run(crypto.randomUUID(), inv.id, inv.archive_id, 'invoice');
+        });
+
+        // Migrate General Documents
+        const genDocsWithArchive = db.prepare('SELECT id, archive_id FROM general_documents WHERE archive_id IS NOT NULL').all();
+        genDocsWithArchive.forEach(doc => {
+            insertDocArchive.run(crypto.randomUUID(), doc.id, doc.archive_id, 'general');
+        });
+    }
 
     // Add default document types if none exist
     const docTypeCount = db.prepare('SELECT count(*) as count FROM document_types').get().count;

@@ -103,6 +103,8 @@ export interface Invoice {
   notes: string;
   hasPdf: boolean;
   pdfPath?: string;
+  archiveIds?: string[];
+  archives?: Archive[];
   lines: TaxLine[];
   totalTaxable: number;
   totalSupported: number;
@@ -282,7 +284,8 @@ export interface GeneralDocument {
   expiry_date?: string;
   related_entity_type?: string;
   related_entity_id?: string;
-  archive_id?: string;
+  archiveIds?: string[];
+  archives?: Archive[];
   archive_description?: string;
   created_at?: string;
 }
@@ -434,7 +437,7 @@ declare global {
         getDocumentsInArchive: (archiveId: string) => Promise<any[]>;
         searchLinkableDocuments: (filters: { query?: string; docType?: string; entityType?: string }) => Promise<any[]>;
         linkDocumentToArchive: (docType: string, docId: string, archiveId: string) => Promise<any>;
-        unlinkDocumentFromArchive: (docType: string, docId: string) => Promise<any>;
+        unlinkDocumentFromArchive: (docType: string, docId: string, archiveId: string) => Promise<any>;
         getDeadlineConfigs: () => Promise<DeadlineConfig[]>;
         updateDeadlineConfig: (config: DeadlineConfig) => Promise<any>;
         getUpcomingDeadlines: () => Promise<DeadlineItem[]>;

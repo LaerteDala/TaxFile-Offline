@@ -1,4 +1,5 @@
 import db from '../database.js';
+import crypto from 'crypto';
 
 export const invoiceRepo = {
     getInvoices: () => {
@@ -24,7 +25,6 @@ export const invoiceRepo = {
                 orderNumber: inv.order_number,
                 supplierId: inv.supplier_id,
                 clientId: inv.client_id,
-                documentTypeId: inv.document_type_id,
                 date: inv.date,
                 dueDate: inv.due_date,
                 documentNumber: inv.document_number,
@@ -41,6 +41,17 @@ export const invoiceRepo = {
                 totalDocument: mappedLines.reduce((sum, l) => sum + l.taxableValue + (inv.type === 'PURCHASE' ? l.supportedVat : l.liquidatedVat) - l.withholdingAmount, 0)
             };
         });
+
+        // Populate archiveIds for each invoice
+        return invoices.map(inv => {
+            const archives = db.prepare(`
+                SELECT a.* 
+                FROM archives a
+                JOIN document_archives da ON a.id = da.archive_id
+                WHERE da.document_id = ? AND da.document_type = 'invoice'
+            `).all(inv.id);
+            return { ...inv, archives, archiveIds: archives.map(a => a.id) };
+        });
     },
 
     addInvoice: ({ invoice, taxLines }) => {
@@ -55,6 +66,14 @@ export const invoiceRepo = {
 
         const transaction = db.transaction((inv, lines) => {
             insertInvoice.run(inv.id, inv.type, inv.orderNumber, inv.supplierId, inv.clientId, inv.documentTypeId, inv.date, inv.dueDate, inv.documentNumber, inv.notes, inv.hasPdf ? 1 : 0, inv.pdfPath);
+
+            if (inv.archiveIds && inv.archiveIds.length > 0) {
+                const insertLink = db.prepare('INSERT INTO document_archives (id, document_id, archive_id, document_type) VALUES (?, ?, ?, ?)');
+                inv.archiveIds.forEach(archiveId => {
+                    insertLink.run(crypto.randomUUID(), inv.id, archiveId, 'invoice');
+                });
+            }
+
             for (const line of lines) {
                 insertLine.run(line.id, inv.id, line.taxableValue, line.rate, line.supportedVat, line.deductibleVat, line.liquidatedVat, line.cativeVat, line.isService ? 1 : 0, line.withholdingAmount, line.withholdingTypeId);
             }
@@ -78,6 +97,16 @@ export const invoiceRepo = {
 
         const transaction = db.transaction((inv, lines) => {
             updateInvoice.run(inv.type, inv.orderNumber, inv.supplierId, inv.clientId, inv.documentTypeId, inv.date, inv.dueDate, inv.documentNumber, inv.notes, inv.hasPdf ? 1 : 0, inv.pdfPath, inv.id);
+
+            // Update archive links
+            db.prepare('DELETE FROM document_archives WHERE document_id = ? AND document_type = ?').run(inv.id, 'invoice');
+            if (inv.archiveIds && inv.archiveIds.length > 0) {
+                const insertLink = db.prepare('INSERT INTO document_archives (id, document_id, archive_id, document_type) VALUES (?, ?, ?, ?)');
+                inv.archiveIds.forEach(archiveId => {
+                    insertLink.run(crypto.randomUUID(), inv.id, archiveId, 'invoice');
+                });
+            }
+
             deleteLines.run(inv.id);
             for (const line of lines) {
                 insertLine.run(line.id, inv.id, line.taxableValue, line.rate, line.supportedVat, line.deductibleVat, line.liquidatedVat, line.cativeVat, line.isService ? 1 : 0, line.withholdingAmount, line.withholdingTypeId);

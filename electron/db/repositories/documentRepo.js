@@ -35,47 +35,80 @@ export const documentRepo = {
 
     // General Documents
     getGeneralDocuments: () => {
-        return db.prepare(`
-            SELECT gd.*, a.description as archive_description 
+        const docs = db.prepare(`
+            SELECT gd.*
             FROM general_documents gd
-            LEFT JOIN archives a ON gd.archive_id = a.id
             ORDER BY gd.created_at DESC
         `).all();
+
+        return docs.map(doc => {
+            const archives = db.prepare(`
+                SELECT a.* 
+                FROM archives a
+                JOIN document_archives da ON a.id = da.archive_id
+                WHERE da.document_id = ? AND da.document_type = 'general'
+            `).all(doc.id);
+            return { ...doc, archives, archiveIds: archives.map(a => a.id) };
+        });
     },
 
     addGeneralDocument: (doc) => {
         const id = crypto.randomUUID();
         const stmt = db.prepare(`
-            INSERT INTO general_documents (id, description, issue_date, expiry_date, related_entity_type, related_entity_id, archive_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO general_documents (id, description, issue_date, expiry_date, related_entity_type, related_entity_id)
+            VALUES (?, ?, ?, ?, ?, ?)
         `);
-        stmt.run(
-            id,
-            doc.description,
-            doc.issue_date,
-            doc.expiry_date,
-            doc.related_entity_type || null,
-            doc.related_entity_id || null,
-            doc.archive_id || null
-        );
+
+        const transaction = db.transaction((d, archiveIds) => {
+            stmt.run(
+                id,
+                d.description,
+                d.issue_date,
+                d.expiry_date,
+                d.related_entity_type || null,
+                d.related_entity_id || null
+            );
+
+            if (archiveIds && archiveIds.length > 0) {
+                const insertLink = db.prepare('INSERT INTO document_archives (id, document_id, archive_id, document_type) VALUES (?, ?, ?, ?)');
+                archiveIds.forEach(archiveId => {
+                    insertLink.run(crypto.randomUUID(), id, archiveId, 'general');
+                });
+            }
+        });
+
+        transaction(doc, doc.archiveIds);
         return { id, ...doc };
     },
 
     updateGeneralDocument: (doc) => {
         const stmt = db.prepare(`
             UPDATE general_documents
-            SET description = ?, issue_date = ?, expiry_date = ?, related_entity_type = ?, related_entity_id = ?, archive_id = ?
+            SET description = ?, issue_date = ?, expiry_date = ?, related_entity_type = ?, related_entity_id = ?
             WHERE id = ?
         `);
-        stmt.run(
-            doc.description,
-            doc.issue_date,
-            doc.expiry_date,
-            doc.related_entity_type || null,
-            doc.related_entity_id || null,
-            doc.archive_id || null,
-            doc.id
-        );
+
+        const transaction = db.transaction((d, archiveIds) => {
+            stmt.run(
+                d.description,
+                d.issue_date,
+                d.expiry_date,
+                d.related_entity_type || null,
+                d.related_entity_id || null,
+                d.id
+            );
+
+            // Update archive links
+            db.prepare('DELETE FROM document_archives WHERE document_id = ? AND document_type = ?').run(d.id, 'general');
+            if (archiveIds && archiveIds.length > 0) {
+                const insertLink = db.prepare('INSERT INTO document_archives (id, document_id, archive_id, document_type) VALUES (?, ?, ?, ?)');
+                archiveIds.forEach(archiveId => {
+                    insertLink.run(crypto.randomUUID(), d.id, archiveId, 'general');
+                });
+            }
+        });
+
+        transaction(doc, doc.archiveIds);
         return doc;
     },
 
@@ -109,7 +142,7 @@ export const documentRepo = {
     // Document Linking & Search
     getDocumentsInArchive: (archiveId) => {
         const genDocs = db.prepare(`
-            SELECT 'general' as doc_type, gd.*, a.description as archive_description,
+            SELECT 'general' as doc_type, gd.*,
             CASE 
                 WHEN gd.related_entity_type = 'supplier' THEN s.name
                 WHEN gd.related_entity_type = 'client' THEN c.name
@@ -117,11 +150,11 @@ export const documentRepo = {
                 ELSE NULL
             END as entity_name
             FROM general_documents gd
-            LEFT JOIN archives a ON gd.archive_id = a.id
+            JOIN document_archives da ON gd.id = da.document_id AND da.document_type = 'general'
             LEFT JOIN suppliers s ON gd.related_entity_id = s.id AND gd.related_entity_type = 'supplier'
             LEFT JOIN clients c ON gd.related_entity_id = c.id AND gd.related_entity_type = 'client'
             LEFT JOIN staff st ON gd.related_entity_id = st.id AND gd.related_entity_type = 'staff'
-            WHERE gd.archive_id = ?
+            WHERE da.archive_id = ?
         `).all(archiveId);
 
         // Fetch attachments for each general document
@@ -138,10 +171,11 @@ export const documentRepo = {
                 ELSE NULL
             END as entity_name
             FROM invoices i
+            JOIN document_archives da ON i.id = da.document_id AND da.document_type = 'invoice'
             LEFT JOIN document_types dt ON i.document_type_id = dt.id
             LEFT JOIN suppliers s ON i.supplier_id = s.id
             LEFT JOIN clients c ON i.client_id = c.id
-            WHERE i.archive_id = ?
+            WHERE da.archive_id = ?
         `).all(archiveId);
 
         return [...genDocsWithAttachments, ...invoices];
@@ -166,7 +200,7 @@ export const documentRepo = {
                 LEFT JOIN suppliers s ON gd.related_entity_id = s.id AND gd.related_entity_type = 'supplier'
                 LEFT JOIN clients c ON gd.related_entity_id = c.id AND gd.related_entity_type = 'client'
                 LEFT JOIN staff st ON gd.related_entity_id = st.id AND gd.related_entity_type = 'staff'
-                WHERE gd.archive_id IS NULL
+                WHERE 1=1
             `;
 
             const params = [];
@@ -196,7 +230,7 @@ export const documentRepo = {
                 LEFT JOIN document_types dt ON i.document_type_id = dt.id
                 LEFT JOIN suppliers s ON i.supplier_id = s.id
                 LEFT JOIN clients c ON i.client_id = c.id
-                WHERE i.archive_id IS NULL
+                WHERE 1=1
             `;
 
             const params = [];
@@ -220,18 +254,11 @@ export const documentRepo = {
     },
 
     linkDocumentToArchive: (docType, docId, archiveId) => {
-        if (docType === 'general') {
-            return db.prepare('UPDATE general_documents SET archive_id = ? WHERE id = ?').run(archiveId, docId);
-        } else if (docType === 'invoice') {
-            return db.prepare('UPDATE invoices SET archive_id = ? WHERE id = ?').run(archiveId, docId);
-        }
+        const id = crypto.randomUUID();
+        return db.prepare('INSERT OR IGNORE INTO document_archives (id, document_id, archive_id, document_type) VALUES (?, ?, ?, ?)').run(id, docId, archiveId, docType);
     },
 
-    unlinkDocumentFromArchive: (docType, docId) => {
-        if (docType === 'general') {
-            return db.prepare('UPDATE general_documents SET archive_id = NULL WHERE id = ?').run(docId);
-        } else if (docType === 'invoice') {
-            return db.prepare('UPDATE invoices SET archive_id = NULL WHERE id = ?').run(docId);
-        }
+    unlinkDocumentFromArchive: (docType, docId, archiveId) => {
+        return db.prepare('DELETE FROM document_archives WHERE document_id = ? AND archive_id = ? AND document_type = ?').run(docId, archiveId, docType);
     }
 };

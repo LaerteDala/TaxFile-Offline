@@ -47,7 +47,7 @@ const DocumentsGeneral: React.FC<DocumentsGeneralProps> = ({
         expiry_date: '',
         related_entity_type: '',
         related_entity_id: '',
-        archive_id: ''
+        archiveIds: [] as string[]
     });
 
     useEffect(() => {
@@ -91,7 +91,7 @@ const DocumentsGeneral: React.FC<DocumentsGeneralProps> = ({
             const dataToSave = {
                 ...formData,
                 related_entity_id: formData.related_entity_id || null,
-                archive_id: formData.archive_id || null
+                archiveIds: formData.archiveIds
             };
 
             if (editingDoc) {
@@ -125,7 +125,7 @@ const DocumentsGeneral: React.FC<DocumentsGeneralProps> = ({
                 expiry_date: '',
                 related_entity_type: '',
                 related_entity_id: '',
-                archive_id: ''
+                archiveIds: []
             });
             loadData();
         } catch (error) {
@@ -161,7 +161,7 @@ const DocumentsGeneral: React.FC<DocumentsGeneralProps> = ({
                 expiry_date: doc.expiry_date || '',
                 related_entity_type: doc.related_entity_type || '',
                 related_entity_id: doc.related_entity_id || '',
-                archive_id: doc.archive_id || ''
+                archiveIds: doc.archiveIds || []
             });
 
             // Load existing attachments
@@ -184,7 +184,7 @@ const DocumentsGeneral: React.FC<DocumentsGeneralProps> = ({
                 expiry_date: '',
                 related_entity_type: '',
                 related_entity_id: '',
-                archive_id: ''
+                archiveIds: []
             });
         }
         setShowModal(true);
@@ -236,7 +236,7 @@ const DocumentsGeneral: React.FC<DocumentsGeneralProps> = ({
 
     const filteredDocuments = documents.filter(doc => {
         const matchesSearch = doc.description.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesArchive = filterArchive ? doc.archive_id === filterArchive : true;
+        const matchesArchive = filterArchive ? doc.archiveIds?.includes(filterArchive) : true;
         return matchesSearch && matchesArchive;
     });
 
@@ -310,10 +310,14 @@ const DocumentsGeneral: React.FC<DocumentsGeneralProps> = ({
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-slate-600">
-                                        {doc.archive_description ? (
-                                            <div className="flex items-center gap-2">
-                                                <Folder size={14} className="text-amber-500" />
-                                                {doc.archive_description}
+                                        {doc.archives && doc.archives.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {doc.archives.map(a => (
+                                                    <div key={a.id} className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-100">
+                                                        <Folder size={10} />
+                                                        {a.description}
+                                                    </div>
+                                                ))}
                                             </div>
                                         ) : '-'}
                                     </td>
@@ -415,28 +419,58 @@ const DocumentsGeneral: React.FC<DocumentsGeneralProps> = ({
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Arquivo (Dossier)</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Arquivos (Dossiers)</label>
                                 <div className="space-y-2">
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        {formData.archiveIds.map(id => {
+                                            const archive = archives.find(a => a.id === id);
+                                            return (
+                                                <div key={id} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-100">
+                                                    <Folder size={12} />
+                                                    {archive ? archive.description : 'Arquivo desconhecido'}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setFormData({ ...formData, archiveIds: formData.archiveIds.filter(aid => aid !== id) })}
+                                                        className="hover:text-red-500 transition-colors"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                        {formData.archiveIds.length === 0 && (
+                                            <p className="text-xs text-slate-400 italic">Nenhum arquivo selecionado</p>
+                                        )}
+                                    </div>
                                     <input
                                         type="text"
-                                        placeholder="Pesquisar arquivo..."
+                                        placeholder="Pesquisar arquivo para adicionar..."
                                         value={archiveSearch}
                                         onChange={e => setArchiveSearch(e.target.value)}
                                         className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                     />
-                                    <select
-                                        value={formData.archive_id}
-                                        onChange={e => setFormData({ ...formData, archive_id: e.target.value })}
-                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                                        size={Math.min(filteredArchives.length + 1, 6)}
-                                    >
-                                        <option value="">Selecione um arquivo...</option>
-                                        {filteredArchives.map(a => (
-                                            <option key={a.id} value={a.id}>
-                                                {getArchivePath(a.id)}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    {archiveSearch && (
+                                        <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-sm">
+                                            {filteredArchives.map(a => (
+                                                <button
+                                                    key={a.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (!formData.archiveIds.includes(a.id)) {
+                                                            setFormData({ ...formData, archiveIds: [...formData.archiveIds, a.id] });
+                                                        }
+                                                        setArchiveSearch('');
+                                                    }}
+                                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm border-b border-slate-100 last:border-0"
+                                                >
+                                                    {getArchivePath(a.id)}
+                                                </button>
+                                            ))}
+                                            {filteredArchives.length === 0 && (
+                                                <div className="p-4 text-center text-slate-400 text-xs">Nenhum arquivo encontrado</div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
