@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Supplier, Client, Staff as StaffType, Invoice, DocumentType, WithholdingType, CCDocument, Department, JobFunction } from '../types';
+import { View, Supplier, Client, Staff as StaffType, Invoice, DocumentType, WithholdingType, CCDocument, Department, JobFunction, GeneralDocument } from '../types';
 import Dashboard from './Dashboard';
 import Suppliers from './Suppliers';
 import Clients from './Clients';
@@ -37,6 +37,7 @@ import SocialSecurityRemunerations from './SocialSecurityRemunerations';
 import SocialSecurityReports from './SocialSecurityReports';
 import DocumentsArchive from './DocumentsArchive';
 import DocumentsGeneral from './DocumentsGeneral';
+import DocumentsDeadlines from './DocumentsDeadlines';
 import { FileText } from 'lucide-react';
 import { navigation } from '../config/navigation';
 
@@ -66,6 +67,8 @@ interface AppRouterProps {
     setCcInitialIsViewing: (val: boolean) => void;
     selectedInvoice: Invoice | null;
     setSelectedInvoice: (inv: Invoice | null) => void;
+    selectedGeneralDocument: GeneralDocument | null;
+    setSelectedGeneralDocument: (doc: GeneralDocument | null) => void;
     fetchData: (isSilent?: boolean) => Promise<void>;
 }
 
@@ -95,6 +98,8 @@ const AppRouter: React.FC<AppRouterProps> = ({
     setCcInitialIsViewing,
     selectedInvoice,
     setSelectedInvoice,
+    selectedGeneralDocument,
+    setSelectedGeneralDocument,
     fetchData
 }) => {
     return (
@@ -230,7 +235,32 @@ const AppRouter: React.FC<AppRouterProps> = ({
                 <SocialSecurityReports />
             )}
             {currentView === 'documents_archive' && <DocumentsArchive />}
-            {currentView === 'documents_general' && <DocumentsGeneral />}
+            {currentView === 'documents_general' && (
+                <DocumentsGeneral
+                    initialDocument={selectedGeneralDocument}
+                    onClose={() => setSelectedGeneralDocument(null)}
+                />
+            )}
+            {currentView === 'documents_deadlines' && (
+                <DocumentsDeadlines
+                    onNavigate={async (view, id) => {
+                        if (view === 'invoices') {
+                            const inv = invoices.find(i => i.id === id);
+                            if (inv) {
+                                setSelectedInvoice(inv);
+                                setCurrentView('invoices');
+                            }
+                        } else if (view === 'documents_general') {
+                            const docs = await window.electron.db.getGeneralDocuments();
+                            const doc = docs.find(d => d.id === id);
+                            if (doc) {
+                                setSelectedGeneralDocument(doc);
+                                setCurrentView('documents_general');
+                            }
+                        }
+                    }}
+                />
+            )}
             {['tax_is', 'tax_ivm', 'tax_iac', 'contracts'].includes(currentView) && (
                 <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
                     <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">

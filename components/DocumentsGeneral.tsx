@@ -16,7 +16,15 @@ import {
 } from 'lucide-react';
 import { GeneralDocument, Archive, Supplier, Client, Staff, Invoice, GeneralDocumentAttachment } from '../types';
 
-const DocumentsGeneral: React.FC = () => {
+interface DocumentsGeneralProps {
+    initialDocument?: GeneralDocument | null;
+    onClose?: () => void;
+}
+
+const DocumentsGeneral: React.FC<DocumentsGeneralProps> = ({
+    initialDocument,
+    onClose
+}) => {
     const [documents, setDocuments] = useState<GeneralDocument[]>([]);
     const [archives, setArchives] = useState<Archive[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -45,6 +53,12 @@ const DocumentsGeneral: React.FC = () => {
     useEffect(() => {
         loadData();
     }, []);
+
+    useEffect(() => {
+        if (initialDocument) {
+            openModal(initialDocument);
+        }
+    }, [initialDocument]);
 
     const loadData = async () => {
         setLoading(true);

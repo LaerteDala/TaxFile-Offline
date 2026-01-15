@@ -30,7 +30,8 @@ import {
     Store,
     Briefcase,
     LayoutGrid,
-    ShieldCheck
+    ShieldCheck,
+    Clock
 } from 'lucide-react';
 import { View } from '../types';
 
@@ -94,6 +95,7 @@ export const navigation: NavItem[] = [
             { name: 'Arquivo', icon: Folder, view: 'documents_archive' as View },
             { name: 'Facturas', icon: FileText, view: 'invoices' as View },
             { name: 'Contratos', icon: FileSignature, view: 'contracts' as View },
+            { name: 'Cnt. Prazos', icon: Clock, view: 'documents_deadlines' as View },
         ]
     },
     {

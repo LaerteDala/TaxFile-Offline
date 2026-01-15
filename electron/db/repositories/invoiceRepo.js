@@ -26,6 +26,7 @@ export const invoiceRepo = {
                 clientId: inv.client_id,
                 documentTypeId: inv.document_type_id,
                 date: inv.date,
+                dueDate: inv.due_date,
                 documentNumber: inv.document_number,
                 notes: inv.notes,
                 hasPdf: !!inv.has_pdf,
@@ -44,8 +45,8 @@ export const invoiceRepo = {
 
     addInvoice: ({ invoice, taxLines }) => {
         const insertInvoice = db.prepare(`
-            INSERT INTO invoices (id, type, order_number, supplier_id, client_id, document_type_id, date, document_number, notes, has_pdf, pdf_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO invoices (id, type, order_number, supplier_id, client_id, document_type_id, date, due_date, document_number, notes, has_pdf, pdf_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         const insertLine = db.prepare(`
             INSERT INTO tax_lines (id, invoice_id, taxable_value, rate, supported_vat, deductible_vat, liquidated_vat, cative_vat, is_service, withholding_amount, withholding_type_id)
@@ -53,7 +54,7 @@ export const invoiceRepo = {
         `);
 
         const transaction = db.transaction((inv, lines) => {
-            insertInvoice.run(inv.id, inv.type, inv.orderNumber, inv.supplierId, inv.clientId, inv.documentTypeId, inv.date, inv.documentNumber, inv.notes, inv.hasPdf ? 1 : 0, inv.pdfPath);
+            insertInvoice.run(inv.id, inv.type, inv.orderNumber, inv.supplierId, inv.clientId, inv.documentTypeId, inv.date, inv.dueDate, inv.documentNumber, inv.notes, inv.hasPdf ? 1 : 0, inv.pdfPath);
             for (const line of lines) {
                 insertLine.run(line.id, inv.id, line.taxableValue, line.rate, line.supportedVat, line.deductibleVat, line.liquidatedVat, line.cativeVat, line.isService ? 1 : 0, line.withholdingAmount, line.withholdingTypeId);
             }
@@ -66,7 +67,7 @@ export const invoiceRepo = {
         const updateInvoice = db.prepare(`
             UPDATE invoices SET 
                 type = ?, order_number = ?, supplier_id = ?, client_id = ?, document_type_id = ?, 
-                date = ?, document_number = ?, notes = ?, has_pdf = ?, pdf_path = ?
+                date = ?, due_date = ?, document_number = ?, notes = ?, has_pdf = ?, pdf_path = ?
             WHERE id = ?
         `);
         const deleteLines = db.prepare('DELETE FROM tax_lines WHERE invoice_id = ?');
@@ -76,7 +77,7 @@ export const invoiceRepo = {
         `);
 
         const transaction = db.transaction((inv, lines) => {
-            updateInvoice.run(inv.type, inv.orderNumber, inv.supplierId, inv.clientId, inv.documentTypeId, inv.date, inv.documentNumber, inv.notes, inv.hasPdf ? 1 : 0, inv.pdfPath, inv.id);
+            updateInvoice.run(inv.type, inv.orderNumber, inv.supplierId, inv.clientId, inv.documentTypeId, inv.date, inv.dueDate, inv.documentNumber, inv.notes, inv.hasPdf ? 1 : 0, inv.pdfPath, inv.id);
             deleteLines.run(inv.id);
             for (const line of lines) {
                 insertLine.run(line.id, inv.id, line.taxableValue, line.rate, line.supportedVat, line.deductibleVat, line.liquidatedVat, line.cativeVat, line.isService ? 1 : 0, line.withholdingAmount, line.withholdingTypeId);

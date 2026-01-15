@@ -25,6 +25,12 @@ const App: React.FC = () => {
     selectedCCDocument, setSelectedCCDocument,
     ccInitialIsViewing, setCcInitialIsViewing,
     selectedInvoice, setSelectedInvoice,
+    selectedGeneralDocument, setSelectedGeneralDocument,
+    deadlineSummary,
+    notifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    deleteNotification,
     fetchData, handleLogout
   } = useAppData();
 
@@ -50,6 +56,7 @@ const App: React.FC = () => {
         onViewChange={setCurrentView}
         onToggleMenu={toggleMenu}
         onLogout={handleLogout}
+        deadlineSummary={deadlineSummary}
       />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
@@ -58,6 +65,11 @@ const App: React.FC = () => {
           session={session}
           onToggleSidebar={toggleSidebar}
           onRefresh={() => fetchData(true)}
+          notifications={notifications}
+          onMarkAsRead={markNotificationAsRead}
+          onMarkAllAsRead={markAllNotificationsAsRead}
+          onDeleteNotification={deleteNotification}
+          onNavigate={setCurrentView}
         />
 
         <div className="flex-1 overflow-y-auto p-8">
@@ -87,6 +99,8 @@ const App: React.FC = () => {
             setCcInitialIsViewing={setCcInitialIsViewing}
             selectedInvoice={selectedInvoice}
             setSelectedInvoice={setSelectedInvoice}
+            selectedGeneralDocument={selectedGeneralDocument}
+            setSelectedGeneralDocument={setSelectedGeneralDocument}
             fetchData={fetchData}
           />
         </div>

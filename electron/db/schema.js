@@ -235,6 +235,24 @@ export function initDb() {
             irt_limit_value REAL DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS deadline_configs (
+            id TEXT PRIMARY KEY,
+            document_type TEXT NOT NULL UNIQUE, -- 'general', 'invoice', 'contract'
+            days_before INTEGER DEFAULT 15,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS notifications (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            is_read INTEGER DEFAULT 0,
+            link TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     `);
 
     // Migrations: Add columns if they don't exist
@@ -249,6 +267,7 @@ export function initDb() {
     if (!tableInfoInvoices.some(col => col.name === 'type')) db.exec("ALTER TABLE invoices ADD COLUMN type TEXT DEFAULT 'PURCHASE';");
     if (!tableInfoInvoices.some(col => col.name === 'client_id')) db.exec("ALTER TABLE invoices ADD COLUMN client_id TEXT;");
     if (!tableInfoInvoices.some(col => col.name === 'archive_id')) db.exec("ALTER TABLE invoices ADD COLUMN archive_id TEXT;");
+    if (!tableInfoInvoices.some(col => col.name === 'due_date')) db.exec("ALTER TABLE invoices ADD COLUMN due_date TEXT;");
 
     const tableInfoTaxLines = db.prepare("PRAGMA table_info(tax_lines)").all();
     if (!tableInfoTaxLines.some(col => col.name === 'liquidated_vat')) db.exec("ALTER TABLE tax_lines ADD COLUMN liquidated_vat REAL DEFAULT 0;");
@@ -354,6 +373,26 @@ export function initDb() {
         // Outros Subsídios Não Sujeitos a IRT
         insertSubsidy.run(crypto.randomUUID(), 'Outros Subsídios Não Sujeitos a IRT', 1, 'none', 0, 0, 'none', 0);
     }
+
+    // Add default deadline configs if none exist
+    const deadlineConfigCount = db.prepare('SELECT count(*) as count FROM deadline_configs').get().count;
+    if (deadlineConfigCount === 0) {
+        const insertDeadlineConfig = db.prepare('INSERT INTO deadline_configs (id, document_type, days_before) VALUES (?, ?, ?)');
+        insertDeadlineConfig.run(crypto.randomUUID(), 'invoice', 15);
+        insertDeadlineConfig.run(crypto.randomUUID(), 'contract', 30);
+        insertDeadlineConfig.run(crypto.randomUUID(), 'general', 7);
+    }
+
+    // Ensure all fiscal document types have a deadline config
+    const docTypes = db.prepare('SELECT * FROM document_types').all();
+    const existingConfigs = db.prepare('SELECT document_type FROM deadline_configs').all().map(c => c.document_type);
+
+    const insertConfig = db.prepare('INSERT INTO deadline_configs (id, document_type, days_before) VALUES (?, ?, ?)');
+    docTypes.forEach(dt => {
+        if (!existingConfigs.includes(dt.id)) {
+            insertConfig.run(crypto.randomUUID(), dt.id, 15);
+        }
+    });
 
     // Remuneration Maps
     db.exec(`

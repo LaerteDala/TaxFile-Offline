@@ -32,6 +32,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
   const [clientId, setClientId] = useState('');
   const [documentTypeId, setDocumentTypeId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState('');
   const [docNumber, setDocNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -143,9 +144,12 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
 
   const handleEdit = (inv: Invoice) => {
     setEditingInvoice(inv);
-    setSupplierId(inv.supplierId);
+    setInvoiceType(inv.type);
+    setSupplierId(inv.supplierId || '');
+    setClientId(inv.clientId || '');
     setDocumentTypeId(inv.documentTypeId || '');
     setDate(inv.date);
+    setDueDate(inv.dueDate || '');
     setDocNumber(inv.documentNumber);
     setNotes(inv.notes || '');
     setTaxLines(inv.lines);
@@ -193,10 +197,12 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
       const invoiceData = {
         id: editingInvoice?.id || crypto.randomUUID(),
         type: invoiceType,
+        orderNumber: editingInvoice?.orderNumber || (invoices.length > 0 ? Math.max(...invoices.map(i => i.orderNumber)) + 1 : 1),
         supplierId: invoiceType === 'PURCHASE' ? supplierId : undefined,
         clientId: invoiceType === 'SALE' ? clientId : undefined,
         documentTypeId,
         date,
+        dueDate: dueDate || null,
         documentNumber: docNumber,
         notes,
         hasPdf: !!storagePath,
@@ -247,6 +253,7 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
     setClientId('');
     setDocumentTypeId('');
     setDocNumber('');
+    setDueDate('');
     setNotes('');
     setSelectedFile(null);
     setTaxLines([{ id: crypto.randomUUID(), taxableValue: 0, rate: 14, supportedVat: 0, deductibleVat: 0, liquidatedVat: 0, cativeVat: 0, isService: false, withholdingAmount: 0 }]);
@@ -359,6 +366,17 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
+                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <Calendar size={12} className="text-amber-600" /> DATA DE VENCIMENTO
+                </label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
                   className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
                 />
               </div>

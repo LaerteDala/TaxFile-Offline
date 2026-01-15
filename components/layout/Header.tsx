@@ -1,20 +1,31 @@
 import React from 'react';
 import { Menu } from 'lucide-react';
-import { View } from '../../types';
+import { View, AppNotification } from '../../types';
 import { navigation, settingsMenu } from '../../config/navigation';
+import NotificationCenter from './NotificationCenter';
 
 interface HeaderProps {
     currentView: View;
     session: any;
     onToggleSidebar: () => void;
     onRefresh: () => void;
+    notifications: AppNotification[];
+    onMarkAsRead: (id: string) => void;
+    onMarkAllAsRead: () => void;
+    onDeleteNotification: (id: string) => void;
+    onNavigate: (view: View) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
     currentView,
     session,
     onToggleSidebar,
-    onRefresh
+    onRefresh,
+    notifications,
+    onMarkAsRead,
+    onMarkAllAsRead,
+    onDeleteNotification,
+    onNavigate
 }) => {
     const getTitle = () => {
         const allItems = [...navigation, settingsMenu];
@@ -46,6 +57,15 @@ const Header: React.FC<HeaderProps> = ({
                 >
                     Actualizar Dados
                 </button>
+
+                <NotificationCenter
+                    notifications={notifications}
+                    onMarkAsRead={onMarkAsRead}
+                    onMarkAllAsRead={onMarkAllAsRead}
+                    onDelete={onDeleteNotification}
+                    onNavigate={onNavigate}
+                />
+
                 <div className="flex items-center gap-3 border-l pl-6 border-slate-200">
                     <div className="text-right hidden sm:block">
                         <p className="text-sm font-semibold text-slate-800 truncate max-w-[150px]">

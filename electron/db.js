@@ -8,9 +8,10 @@ import { ccRepo } from './db/repositories/ccRepo.js';
 import { staffRepo } from './db/repositories/staffRepo.js';
 import { authService } from './db/authService.js';
 import { fileService } from './db/fileService.js';
-
 import { remunerationRepo } from './db/repositories/remunerationRepo.js';
 import { documentRepo } from './db/repositories/documentRepo.js';
+import { deadlineRepo } from './db/repositories/deadlineRepo.js';
+import { notificationRepo } from './db/repositories/notificationRepo.js';
 
 // Initialize database schema
 initDb();
@@ -28,5 +29,7 @@ export const dbOps = {
     ...authService,
     ...fileService,
     ...remunerationRepo,
-    ...documentRepo
+    ...documentRepo,
+    ...deadlineRepo,
+    ...notificationRepo
 };

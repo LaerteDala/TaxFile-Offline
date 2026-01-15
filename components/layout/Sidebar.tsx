@@ -5,7 +5,7 @@ import {
     ChevronRight,
     LogOut
 } from 'lucide-react';
-import { View } from '../../types';
+import { View, DeadlineSummary } from '../../types';
 import { NavItem, navigation, settingsMenu, settingsRelatedViews } from '../../config/navigation';
 
 interface SidebarProps {
@@ -15,6 +15,7 @@ interface SidebarProps {
     onViewChange: (view: View) => void;
     onToggleMenu: (menuId: string) => void;
     onLogout: () => void;
+    deadlineSummary?: DeadlineSummary;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -23,7 +24,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     expandedMenus,
     onViewChange,
     onToggleMenu,
-    onLogout
+    onLogout,
+    deadlineSummary
 }) => {
     const isChildActive = (item: NavItem): boolean => {
         if (item.view === currentView) return true;
@@ -75,6 +77,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             >
                 <item.icon size={20} />
                 {isSidebarOpen && <span className="font-bold text-sm">{item.name}</span>}
+                {isSidebarOpen && item.view === 'documents_deadlines' && deadlineSummary && deadlineSummary.total > 0 && (
+                    <div className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-black ${deadlineSummary.expired > 0 ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-500 text-white'}`}>
+                        {deadlineSummary.total}
+                    </div>
+                )}
             </button>
         );
     };

@@ -98,6 +98,7 @@ export interface Invoice {
   clientId?: string;
   documentTypeId: string;
   date: string;
+  dueDate?: string;
   documentNumber: string;
   notes: string;
   hasPdf: boolean;
@@ -294,7 +295,41 @@ export interface GeneralDocumentAttachment {
   created_at?: string;
 }
 
-export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'fiscal_parameters' | 'irt_table' | 'subsidies' | 'irt_withholding_map' | 'irt_remuneration_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities' | 'sales' | 'purchases' | 'commercial_cc' | 'company_settings' | 'ii_withheld_values' | 'irt_withheld_values' | 'ip_withheld_values' | 'departments' | 'job_functions' | 'social_security_remunerations' | 'social_security_reports' | 'documents_general' | 'documents_archive';
+export interface DeadlineConfig {
+  id: string;
+  document_type: string;
+  document_type_name?: string;
+  days_before: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DeadlineItem {
+  id: string;
+  description: string;
+  expiry_date: string;
+  doc_type: 'invoice' | 'contract' | 'general';
+  entity_name: string;
+  days_before_config: number;
+}
+
+export interface DeadlineSummary {
+  expired: number;
+  upcoming: number;
+  total: number;
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'deadline' | 'system' | 'info';
+  title: string;
+  message: string;
+  is_read: number;
+  link?: string;
+  created_at: string;
+}
+
+export type View = 'dashboard' | 'inquiry' | 'reports' | 'suppliers' | 'clients' | 'staff' | 'invoices' | 'contracts' | 'cc_statement' | 'cc_operations' | 'cc_reports' | 'tax_ii' | 'tax_is' | 'tax_irt' | 'tax_iva' | 'tax_ip' | 'tax_ivm' | 'tax_iac' | 'settings' | 'fiscal_parameters' | 'irt_table' | 'subsidies' | 'irt_withholding_map' | 'irt_remuneration_map' | 'irt_reports' | 'ii_withholding_map' | 'ii_reports' | 'ip_withholding_map' | 'ip_reports' | 'provinces' | 'municipalities' | 'sales' | 'purchases' | 'commercial_cc' | 'company_settings' | 'ii_withheld_values' | 'irt_withheld_values' | 'ip_withheld_values' | 'departments' | 'job_functions' | 'social_security_remunerations' | 'social_security_reports' | 'documents_general' | 'documents_archive' | 'documents_deadlines';
 
 declare global {
   interface Window {
@@ -400,6 +435,15 @@ declare global {
         searchLinkableDocuments: (filters: { query?: string; docType?: string; entityType?: string }) => Promise<any[]>;
         linkDocumentToArchive: (docType: string, docId: string, archiveId: string) => Promise<any>;
         unlinkDocumentFromArchive: (docType: string, docId: string) => Promise<any>;
+        getDeadlineConfigs: () => Promise<DeadlineConfig[]>;
+        updateDeadlineConfig: (config: DeadlineConfig) => Promise<any>;
+        getUpcomingDeadlines: () => Promise<DeadlineItem[]>;
+        getDeadlineSummary: () => Promise<DeadlineSummary>;
+        getNotifications: () => Promise<AppNotification[]>;
+        markAsRead: (id: string) => Promise<any>;
+        markAllAsRead: () => Promise<any>;
+        addNotification: (data: Partial<AppNotification>) => Promise<any>;
+        deleteNotification: (id: string) => Promise<any>;
       };
       fs: {
         saveFile: (fileName: string, buffer: ArrayBuffer) => Promise<string>;

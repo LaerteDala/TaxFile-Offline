@@ -154,6 +154,16 @@ ipcMain.handle('db:getDocumentsInArchive', async (_, archiveId) => dbOps.getDocu
 ipcMain.handle('db:searchLinkableDocuments', async (_, filters) => dbOps.searchLinkableDocuments(filters));
 ipcMain.handle('db:linkDocumentToArchive', async (_, { docType, docId, archiveId }) => dbOps.linkDocumentToArchive(docType, docId, archiveId));
 ipcMain.handle('db:unlinkDocumentFromArchive', async (_, { docType, docId }) => dbOps.unlinkDocumentFromArchive(docType, docId));
+ipcMain.handle('db:getDeadlineConfigs', async () => dbOps.getDeadlineConfigs());
+ipcMain.handle('db:updateDeadlineConfig', async (_, config) => dbOps.updateDeadlineConfig(config));
+ipcMain.handle('db:getUpcomingDeadlines', async () => dbOps.getUpcomingDeadlines());
+ipcMain.handle('db:getDeadlineSummary', async () => dbOps.getDeadlineSummary());
+
+ipcMain.handle('db:getNotifications', async () => dbOps.getNotifications());
+ipcMain.handle('db:markAsRead', async (_, id) => dbOps.markAsRead(id));
+ipcMain.handle('db:markAllAsRead', async () => dbOps.markAllAsRead());
+ipcMain.handle('db:addNotification', async (_, data) => dbOps.addNotification(data));
+ipcMain.handle('db:deleteNotification', async (_, id) => dbOps.deleteNotification(id));
 
 ipcMain.handle('auth:login', async (_, { email, password }) => dbOps.login(email, password));
 
