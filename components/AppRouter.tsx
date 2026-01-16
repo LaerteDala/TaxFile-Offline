@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Supplier, Client, Staff as StaffType, Invoice, DocumentType, WithholdingType, CCDocument, Department, JobFunction, GeneralDocument } from '../types';
+import { View, Supplier, Client, Staff as StaffType, Invoice, DocumentType, WithholdingType, CCDocument, Department, JobFunction, GeneralDocument, IVAClassification, StampDutyClassification, IndustrialTaxClassification } from '../types';
 import Dashboard from './Dashboard';
 import Suppliers from './Suppliers';
 import Clients from './Clients';
@@ -69,6 +69,12 @@ interface AppRouterProps {
     setSelectedInvoice: (inv: Invoice | null) => void;
     selectedGeneralDocument: GeneralDocument | null;
     setSelectedGeneralDocument: (doc: GeneralDocument | null) => void;
+    ivaClassifications: IVAClassification[];
+    setIvaClassifications: React.Dispatch<React.SetStateAction<IVAClassification[]>>;
+    stampDutyClassifications: StampDutyClassification[];
+    setStampDutyClassifications: React.Dispatch<React.SetStateAction<StampDutyClassification[]>>;
+    industrialTaxClassifications: IndustrialTaxClassification[];
+    setIndustrialTaxClassifications: React.Dispatch<React.SetStateAction<IndustrialTaxClassification[]>>;
     fetchData: (isSilent?: boolean) => Promise<void>;
 }
 
@@ -100,6 +106,12 @@ const AppRouter: React.FC<AppRouterProps> = ({
     setSelectedInvoice,
     selectedGeneralDocument,
     setSelectedGeneralDocument,
+    ivaClassifications,
+    setIvaClassifications,
+    stampDutyClassifications,
+    setStampDutyClassifications,
+    industrialTaxClassifications,
+    setIndustrialTaxClassifications,
     fetchData
 }) => {
     return (
@@ -135,6 +147,9 @@ const AppRouter: React.FC<AppRouterProps> = ({
                     withholdingTypes={withholdingTypes}
                     initialInvoice={selectedInvoice}
                     onClose={() => setSelectedInvoice(null)}
+                    ivaClassifications={ivaClassifications}
+                    stampDutyClassifications={stampDutyClassifications}
+                    industrialTaxClassifications={industrialTaxClassifications}
                 />
             )}
             {currentView === 'inquiry' && <Inquiry invoices={invoices} setInvoices={setInvoices} suppliers={suppliers} clients={clients} documentTypes={documentTypes} withholdingTypes={withholdingTypes} />}
@@ -213,6 +228,12 @@ const AppRouter: React.FC<AppRouterProps> = ({
                     setDocumentTypes={setDocumentTypes}
                     withholdingTypes={withholdingTypes}
                     setWithholdingTypes={setWithholdingTypes}
+                    ivaClassifications={ivaClassifications}
+                    setIvaClassifications={setIvaClassifications}
+                    stampDutyClassifications={stampDutyClassifications}
+                    setStampDutyClassifications={setStampDutyClassifications}
+                    industrialTaxClassifications={industrialTaxClassifications}
+                    setIndustrialTaxClassifications={setIndustrialTaxClassifications}
                     onBack={() => setCurrentView('settings')}
                 />
             )}
@@ -260,6 +281,16 @@ const AppRouter: React.FC<AppRouterProps> = ({
                             }
                         }
                     }}
+                />
+            )}
+            {currentView === 'tax_iva' && (
+                <TaxIVA
+                    invoices={invoices}
+                    suppliers={suppliers}
+                    clients={clients}
+                    documentTypes={documentTypes}
+                    withholdingTypes={withholdingTypes}
+                    ivaClassifications={ivaClassifications}
                 />
             )}
             {['tax_is', 'tax_ivm', 'tax_iac', 'contracts'].includes(currentView) && (

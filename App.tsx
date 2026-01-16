@@ -31,6 +31,9 @@ const App: React.FC = () => {
     markNotificationAsRead,
     markAllNotificationsAsRead,
     deleteNotification,
+    ivaClassifications, setIvaClassifications,
+    stampDutyClassifications, setStampDutyClassifications,
+    industrialTaxClassifications, setIndustrialTaxClassifications,
     fetchData, handleLogout
   } = useAppData();
 
@@ -101,6 +104,12 @@ const App: React.FC = () => {
             setSelectedInvoice={setSelectedInvoice}
             selectedGeneralDocument={selectedGeneralDocument}
             setSelectedGeneralDocument={setSelectedGeneralDocument}
+            ivaClassifications={ivaClassifications}
+            setIvaClassifications={setIvaClassifications}
+            stampDutyClassifications={stampDutyClassifications}
+            setStampDutyClassifications={setStampDutyClassifications}
+            industrialTaxClassifications={industrialTaxClassifications}
+            setIndustrialTaxClassifications={setIndustrialTaxClassifications}
             fetchData={fetchData}
           />
         </div>

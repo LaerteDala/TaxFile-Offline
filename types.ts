@@ -59,6 +59,30 @@ export interface DocumentType {
   id: string;
   code: string;
   name: string;
+  subjectToIVA: boolean;
+  subjectToStampDuty: boolean;
+  subjectToIndustrialTax: boolean;
+}
+
+export interface IVAClassification {
+  id: string;
+  code: string;
+  description: string;
+  taxableBaseLine?: string;
+  taxpayerTaxLine?: string;
+  stateTaxLine?: string;
+}
+
+export interface StampDutyClassification {
+  id: string;
+  code: string;
+  description: string;
+}
+
+export interface IndustrialTaxClassification {
+  id: string;
+  code: string;
+  description: string;
 }
 
 export interface WithholdingType {
@@ -88,6 +112,9 @@ export interface TaxLine {
   isService: boolean;
   withholdingAmount: number;
   withholdingTypeId?: string;
+  ivaClassificationId?: string;
+  stampDutyClassificationId?: string;
+  industrialTaxClassificationId?: string;
 }
 
 export interface Invoice {
@@ -447,6 +474,23 @@ declare global {
         markAllAsRead: () => Promise<any>;
         addNotification: (data: Partial<AppNotification>) => Promise<any>;
         deleteNotification: (id: string) => Promise<any>;
+
+        // Fiscal Classifications
+        getIVAClassifications: () => Promise<IVAClassification[]>;
+        addIVAClassification: (iva: any) => Promise<any>;
+        updateIVAClassification: (iva: any) => Promise<any>;
+        deleteIVAClassification: (id: string) => Promise<any>;
+        seedDefaultIVA: () => Promise<any>;
+
+        getStampDutyClassifications: () => Promise<StampDutyClassification[]>;
+        addStampDutyClassification: (sd: any) => Promise<any>;
+        updateStampDutyClassification: (sd: any) => Promise<any>;
+        deleteStampDutyClassification: (id: string) => Promise<any>;
+
+        getIndustrialTaxClassifications: () => Promise<IndustrialTaxClassification[]>;
+        addIndustrialTaxClassification: (it: any) => Promise<any>;
+        updateIndustrialTaxClassification: (it: any) => Promise<any>;
+        deleteIndustrialTaxClassification: (id: string) => Promise<any>;
       };
       fs: {
         saveFile: (fileName: string, buffer: ArrayBuffer) => Promise<string>;

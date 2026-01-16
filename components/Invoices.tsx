@@ -5,7 +5,7 @@ import {
   FileCheck2, Calendar, Layers, Loader2, X, Building2, Hash, FileText,
   Eye, Edit3, Save, Download, FileX2, CheckSquare, Square, Folder
 } from 'lucide-react';
-import { Invoice, Supplier, Client, TaxLine, DocumentType, WithholdingType, CompanyInfo, Archive } from '../types';
+import { Invoice, Supplier, Client, TaxLine, DocumentType, WithholdingType, CompanyInfo, Archive, IVAClassification, StampDutyClassification, IndustrialTaxClassification } from '../types';
 
 interface InvoicesProps {
   invoices: Invoice[];
@@ -16,9 +16,16 @@ interface InvoicesProps {
   withholdingTypes: WithholdingType[];
   initialInvoice?: Invoice | null;
   onClose?: () => void;
+  ivaClassifications: IVAClassification[];
+  stampDutyClassifications: StampDutyClassification[];
+  industrialTaxClassifications: IndustrialTaxClassification[];
 }
 
-const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, clients, documentTypes, withholdingTypes, initialInvoice, onClose }) => {
+const Invoices: React.FC<InvoicesProps> = ({
+  invoices, setInvoices, suppliers, clients, documentTypes, withholdingTypes,
+  initialInvoice, onClose,
+  ivaClassifications, stampDutyClassifications, industrialTaxClassifications
+}) => {
   const [showCreator, setShowCreator] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -277,263 +284,241 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
 
   if (showCreator) {
     return (
-      <div className="space-y-6 animate-in slide-in-from-right-8 duration-500 pb-20">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => { setShowCreator(false); resetForm(); if (onClose) onClose(); }}
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold transition-colors group"
-          >
-            <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-            Voltar
-          </button>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-            {editingInvoice ? `Editando Factura #${editingInvoice.orderNumber}` : 'Criar Nova Factura'}
-          </h2>
-          <div className="w-20"></div>
+      <div className="animate-in slide-in-from-right-8 duration-500 pb-20">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => { setShowCreator(false); resetForm(); if (onClose) onClose(); }}
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
+            >
+              <ChevronLeft size={24} />
+            </button>
+            <div>
+              <h2 className="text-xl font-bold text-slate-800 tracking-tight">
+                {editingInvoice ? `Editando Factura #${editingInvoice.orderNumber}` : 'Nova Factura'}
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">Preencha os dados abaixo para lançar o documento</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setInvoiceType('PURCHASE')}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${invoiceType === 'PURCHASE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Compra
+              </button>
+              <button
+                type="button"
+                onClick={() => setInvoiceType('SALE')}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${invoiceType === 'SALE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Venda
+              </button>
+            </div>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {formError && (
-            <div className="p-4 bg-red-50 text-red-600 rounded-2xl flex items-center gap-3 border border-red-100 font-bold animate-in shake duration-300">
-              <AlertCircle size={20} />
+            <div className="p-4 bg-red-50 text-red-600 rounded-lg flex items-center gap-3 border border-red-100 font-bold text-sm animate-in shake duration-300">
+              <AlertCircle size={18} />
               <span>{formError}</span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Invoice Type Toggle */}
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
-              <label className="flex items-center gap-2 text-sm font-black text-slate-700 uppercase tracking-wider">
-                <Layers size={16} className="text-blue-600" />
-                Tipo de Factura
-              </label>
-              <div className="flex p-1 bg-slate-100 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setInvoiceType('PURCHASE')}
-                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all ${invoiceType === 'PURCHASE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+            <div className="p-6 grid grid-cols-12 gap-6">
+
+              {/* Row 1: Entity & Document Info */}
+              <div className="col-span-12 md:col-span-4 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  {invoiceType === 'PURCHASE' ? 'Fornecedor' : 'Cliente'} <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={invoiceType === 'PURCHASE' ? supplierId : clientId}
+                  onChange={(e) => invoiceType === 'PURCHASE' ? setSupplierId(e.target.value) : setClientId(e.target.value)}
+                  className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm font-medium text-slate-700 transition-all"
+                  required
                 >
-                  Compra
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInvoiceType('SALE')}
-                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all ${invoiceType === 'SALE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  Venda
-                </button>
+                  <option value="">Seleccione...</option>
+                  {invoiceType === 'PURCHASE'
+                    ? suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
+                    : clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                  }
+                </select>
               </div>
-            </div>
 
-            {/* Entity Selector (Supplier or Client) */}
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
-              <label className="flex items-center gap-2 text-sm font-black text-slate-700 uppercase tracking-wider">
-                <Building2 size={16} className="text-blue-600" />
-                {invoiceType === 'PURCHASE' ? 'Fornecedor' : 'Cliente'}
-              </label>
-              <select
-                value={invoiceType === 'PURCHASE' ? supplierId : clientId}
-                onChange={(e) => invoiceType === 'PURCHASE' ? setSupplierId(e.target.value) : setClientId(e.target.value)}
-                className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 appearance-none"
-                required
-              >
-                <option value="">Seleccione o {invoiceType === 'PURCHASE' ? 'fornecedor' : 'cliente'}...</option>
-                {invoiceType === 'PURCHASE'
-                  ? suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
-                  : clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
-                }
-              </select>
-            </div>
+              <div className="col-span-12 md:col-span-3 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Tipo de Documento <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={documentTypeId}
+                  onChange={(e) => setDocumentTypeId(e.target.value)}
+                  className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm font-medium text-slate-700 transition-all"
+                >
+                  <option value="">Seleccione...</option>
+                  {documentTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.code} - {dt.name}</option>)}
+                </select>
+              </div>
 
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
-              <label className="flex items-center gap-2 text-sm font-black text-slate-700 uppercase tracking-wider">
-                <FileCheck2 size={16} className="text-blue-600" />
-                Tipo de Documento
-              </label>
-              <select
-                required
-                value={documentTypeId}
-                onChange={(e) => setDocumentTypeId(e.target.value)}
-                className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 appearance-none"
-              >
-                <option value="">Seleccionar Tipo...</option>
-                {documentTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.code} - {dt.name}</option>)}
-              </select>
-            </div>
-          </div>
+              <div className="col-span-12 md:col-span-3 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Nº do Documento <span className="text-red-500">*</span>
+                </label>
+                <input
+                  required
+                  type="text"
+                  placeholder="Ex: FA 2024/001"
+                  value={docNumber}
+                  onChange={(e) => setDocNumber(e.target.value)}
+                  className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm font-medium text-slate-700 transition-all"
+                />
+              </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Calendar size={12} className="text-blue-600" /> DATA DA FACTURA
+              <div className="col-span-12 md:col-span-2 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Data Emissão <span className="text-red-500">*</span>
                 </label>
                 <input
                   required
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
+                  className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm font-medium text-slate-700 transition-all"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Calendar size={12} className="text-amber-600" /> DATA DE VENCIMENTO
+
+              {/* Row 2: Secondary Info */}
+              <div className="col-span-12 md:col-span-2 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Vencimento
                 </label>
                 <input
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
+                  className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm font-medium text-slate-700 transition-all"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Hash size={12} className="text-blue-600" /> Nº DO DOCUMENTO
-                </label>
-                <input
-                  required
-                  type="text"
-                  placeholder="Ex: FA01"
-                  value={docNumber}
-                  onChange={(e) => setDocNumber(e.target.value)}
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 transition-all"
-                />
-              </div>
-            </div>
 
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <FileText size={12} className="text-blue-600" /> ANEXO PDF
+              <div className="col-span-12 md:col-span-5 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Anexo Digital (PDF)
                 </label>
                 <input type="file" accept="application/pdf" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-                <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className={`w-full h-[52px] flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed transition-all font-bold text-sm ${selectedFile ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-blue-200 text-blue-400 hover:bg-blue-50/50'}`}
+                    className={`flex-1 h-10 flex items-center justify-center gap-2 rounded-md border border-dashed transition-all font-medium text-xs ${selectedFile ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-slate-50 border-slate-300 text-slate-500 hover:bg-slate-100'}`}
                   >
-                    {selectedFile ? <FileCheck2 size={18} /> : <Upload size={18} />}
-                    <span className="truncate max-w-[180px]">{selectedFile ? selectedFile.name : (editingInvoice?.hasPdf ? 'Substituir PDF Atual' : 'Anexar PDF')}</span>
+                    {selectedFile ? <FileCheck2 size={14} /> : <Upload size={14} />}
+                    <span className="truncate max-w-[200px]">{selectedFile ? selectedFile.name : (editingInvoice?.hasPdf ? 'Substituir PDF' : 'Carregar PDF')}</span>
                   </button>
                   {editingInvoice?.hasPdf && !selectedFile && (
-                    <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
-                      <FileCheck2 size={12} /> Já existe um anexo vinculado a esta factura.
-                    </p>
+                    <button type="button" onClick={() => handleDownload(editingInvoice)} className="h-10 px-3 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-md hover:bg-emerald-100 transition-colors" title="Ver PDF Atual">
+                      <Eye size={16} />
+                    </button>
                   )}
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Layers size={12} className="text-blue-600" /> ARQUIVOS (DOSSIERS)
+              <div className="col-span-12 md:col-span-5 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Arquivos (Dossiers)
                 </label>
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-1 mb-2">
+                <div className="relative">
+                  <div className="flex flex-wrap gap-1 absolute top-1.5 left-2 right-8 pointer-events-none">
                     {archiveIds.map(id => {
                       const archive = archives.find(a => a.id === id);
+                      if (!archive) return null;
                       return (
-                        <div key={id} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-lg text-[10px] font-bold border border-blue-100">
-                          <Folder size={10} />
-                          {archive ? archive.description : '---'}
-                          <button type="button" onClick={() => setArchiveIds(archiveIds.filter(aid => aid !== id))} className="hover:text-red-500">
-                            <X size={10} />
-                          </button>
-                        </div>
+                        <span key={id} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold flex items-center gap-1 shadow-sm">
+                          {archive.description}
+                        </span>
                       );
                     })}
                   </div>
-                  <input
-                    type="text"
-                    placeholder="Pesquisar arquivo..."
-                    value={archiveSearch}
-                    onChange={(e) => setArchiveSearch(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 text-xs"
-                  />
-                  {archiveSearch && (
-                    <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-sm">
-                      {archives.filter(a => a.description.toLowerCase().includes(archiveSearch.toLowerCase())).map(a => (
-                        <button
-                          key={a.id} type="button"
-                          onClick={() => {
-                            if (!archiveIds.includes(a.id)) setArchiveIds([...archiveIds, a.id]);
-                            setArchiveSearch('');
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-slate-50 text-[10px] font-bold border-b border-slate-100 last:border-0"
-                        >
-                          {a.description}
-                        </button>
-                      ))}
-                    </div>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value && !archiveIds.includes(e.target.value)) {
+                        setArchiveIds([...archiveIds, e.target.value]);
+                      }
+                      e.target.value = '';
+                    }}
+                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm font-medium text-slate-700 transition-all"
+                  >
+                    <option value="">+ Adicionar a Arquivo...</option>
+                    {archives.map(a => <option key={a.id} value={a.id}>{a.code} - {a.description}</option>)}
+                  </select>
+                  {archiveIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setArchiveIds([])}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500"
+                      title="Limpar Arquivos"
+                    >
+                      <X size={14} />
+                    </button>
                   )}
                 </div>
               </div>
-            </div>
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col h-full lg:col-span-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">NOTAS ADICIONAIS</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Observações importantes sobre este documento..."
-                className="w-full flex-1 min-h-[120px] p-5 bg-slate-50 border border-slate-200 rounded-3xl outline-none resize-none font-medium text-slate-800 focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-              />
+
             </div>
           </div>
 
-          <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
-            <div className="p-6 px-8 border-b flex justify-between items-center">
-              <span className="font-black text-slate-800 flex items-center gap-3 uppercase text-xs tracking-widest">
-                <Layers className="text-blue-600" size={18} /> Detalhamento de Impostos
-              </span>
-              <button type="button" onClick={addLine} className="text-blue-600 font-black text-sm hover:underline flex items-center gap-2">
-                + Adicionar Linha
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
+                <Layers size={16} className="text-blue-600" /> Detalhes do Documento
+              </h3>
+              <button type="button" onClick={addLine} className="text-blue-600 font-bold text-xs hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-md border border-blue-100 transition-colors">
+                <Plus size={14} /> Adicionar Linha
               </button>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50/50 border-b">
-                  <tr>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Serviço?</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Tributável</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Taxa (%)</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{invoiceType === 'PURCHASE' ? 'IVA Suportado' : 'IVA Liquidado'}</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{invoiceType === 'PURCHASE' ? 'IVA Dedutível' : 'IVA Cativo'}</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Retenção</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Retenção</th>
-                    <th className="px-8 py-4 w-20"></th>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-16 text-center">Serviço</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-40">Valor (AOA)</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-24 text-center">Taxa</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-32 text-right">{invoiceType === 'PURCHASE' ? 'Sup.' : 'Liq.'}</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-32 text-right">{invoiceType === 'PURCHASE' ? 'Ded.' : 'Cat.'}</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-40">Retenção</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-28 text-right">V. Retido</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Classificação</th>
+                    <th className="px-4 py-3 w-10"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {taxLines.map(l => (
-                    <tr key={l.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <td className="px-8 py-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => updateLine(l.id, 'isService', !l.isService)}
-                          className={`p-2 rounded-xl transition-all ${l.isService ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
-                        >
-                          {l.isService ? <CheckSquare size={20} /> : <Square size={20} />}
-                        </button>
+                    <tr key={l.id} className="hover:bg-slate-50/80 transition-colors group">
+                      <td className="px-4 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={l.isService}
+                          onChange={() => updateLine(l.id, 'isService', !l.isService)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
                       </td>
-                      <td className="px-8 py-4">
-                        <div className="relative">
-                          <input
-                            type="number" step="0.01" value={l.taxableValue || ''}
-                            onChange={(e) => updateLine(l.id, 'taxableValue', parseFloat(e.target.value) || 0)}
-                            className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 placeholder:text-slate-400"
-                            placeholder="0,00"
-                          />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 pointer-events-none">AOA</span>
-                        </div>
+                      <td className="px-4 py-2">
+                        <input
+                          type="number" step="0.01" value={l.taxableValue || ''}
+                          onChange={(e) => updateLine(l.id, 'taxableValue', parseFloat(e.target.value) || 0)}
+                          className="w-full h-8 px-2 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs font-medium text-slate-900 text-right"
+                          placeholder="0,00"
+                        />
                       </td>
-                      <td className="px-8 py-4 w-32">
+                      <td className="px-4 py-2">
                         <select
                           value={l.rate} onChange={(e) => updateLine(l.id, 'rate', parseFloat(e.target.value))}
-                          className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none text-center text-slate-900"
+                          className="w-full h-8 px-1 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs font-medium text-slate-900 text-center"
                         >
                           <option value="14">14%</option>
                           <option value="7">7%</option>
@@ -542,42 +527,75 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
                           <option value="0">0%</option>
                         </select>
                       </td>
-                      <td className="px-8 py-4">
-                        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 font-black text-slate-800 text-center text-xs">
+                      <td className="px-4 py-2 text-right">
+                        <span className="text-xs font-medium text-slate-600">
                           {(invoiceType === 'PURCHASE' ? l.supportedVat : l.liquidatedVat).toLocaleString('pt-AO', { minimumFractionDigits: 2 })}
-                        </div>
+                        </span>
                       </td>
-                      <td className="px-8 py-4">
-                        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 font-black text-slate-800 text-center text-xs">
+                      <td className="px-4 py-2 text-right">
+                        <span className="text-xs font-medium text-slate-600">
                           {(invoiceType === 'PURCHASE' ? l.deductibleVat : l.cativeVat).toLocaleString('pt-AO', { minimumFractionDigits: 2 })}
-                        </div>
+                        </span>
                       </td>
-                      <td className="px-8 py-4">
+                      <td className="px-4 py-2">
                         <select
                           disabled={!l.isService}
                           value={l.withholdingTypeId || ''}
                           onChange={(e) => updateLine(l.id, 'withholdingTypeId', e.target.value)}
-                          className={`w-full p-3.5 border rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none text-xs ${!l.isService ? 'bg-slate-50 border-slate-100 text-slate-300' : 'bg-white border-slate-200 text-slate-900'}`}
+                          className={`w-full h-8 px-2 border rounded focus:ring-1 focus:ring-blue-500 outline-none text-[11px] ${!l.isService ? 'bg-slate-50 border-slate-100 text-slate-300' : 'bg-white border-slate-200 text-slate-900'}`}
                         >
-                          <option value="">Seleccionar...</option>
+                          <option value="">-</option>
                           {withholdingTypes
                             .filter(wt => {
                               if (invoiceType === 'PURCHASE') return true;
-                              // For sales, only show company's service regime and Imposto Predial
                               return wt.name === companyInfo?.serviceRegime || wt.name === 'Imposto Predial';
                             })
                             .map(wt => <option key={wt.id} value={wt.id}>{wt.name} ({wt.rate}%)</option>)
                           }
                         </select>
                       </td>
-                      <td className="px-8 py-4">
-                        <div className={`p-3.5 rounded-2xl border font-black text-center transition-all text-xs ${l.isService ? 'bg-amber-50 border-amber-100 text-amber-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
+                      <td className="px-4 py-2 text-right">
+                        <span className={`text-xs font-medium ${l.withholdingAmount > 0 ? 'text-amber-600' : 'text-slate-300'}`}>
                           {l.withholdingAmount.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex flex-col gap-1">
+                          {!!documentTypes.find(dt => dt.id === documentTypeId)?.subjectToIVA && (
+                            <select
+                              value={l.ivaClassificationId || ''}
+                              onChange={(e) => updateLine(l.id, 'ivaClassificationId', e.target.value)}
+                              className="w-full h-7 px-1 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-blue-500 outline-none text-[10px] text-slate-700"
+                            >
+                              <option value="">IVA...</option>
+                              {ivaClassifications.map(c => <option key={c.id} value={c.id}>{c.code} - {c.description.substring(0, 30)}...</option>)}
+                            </select>
+                          )}
+                          {!!documentTypes.find(dt => dt.id === documentTypeId)?.subjectToStampDuty && (
+                            <select
+                              value={l.stampDutyClassificationId || ''}
+                              onChange={(e) => updateLine(l.id, 'stampDutyClassificationId', e.target.value)}
+                              className="w-full h-7 px-1 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-blue-500 outline-none text-[10px] text-slate-700"
+                            >
+                              <option value="">IS...</option>
+                              {stampDutyClassifications.map(c => <option key={c.id} value={c.id}>{c.code} - {c.description.substring(0, 30)}...</option>)}
+                            </select>
+                          )}
+                          {!!documentTypes.find(dt => dt.id === documentTypeId)?.subjectToIndustrialTax && (
+                            <select
+                              value={l.industrialTaxClassificationId || ''}
+                              onChange={(e) => updateLine(l.id, 'industrialTaxClassificationId', e.target.value)}
+                              className="w-full h-7 px-1 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-blue-500 outline-none text-[10px] text-slate-700"
+                            >
+                              <option value="">II...</option>
+                              {industrialTaxClassifications.map(c => <option key={c.id} value={c.id}>{c.code} - {c.description.substring(0, 30)}...</option>)}
+                            </select>
+                          )}
                         </div>
                       </td>
-                      <td className="px-8 py-4 text-right">
-                        <button type="button" onClick={() => setTaxLines(taxLines.filter(x => x.id !== l.id))} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                          <Trash2 size={18} />
+                      <td className="px-4 py-2 text-right">
+                        <button type="button" onClick={() => setTaxLines(taxLines.filter(x => x.id !== l.id))} className="text-slate-300 hover:text-red-500 transition-colors">
+                          <Trash2 size={14} />
                         </button>
                       </td>
                     </tr>
@@ -586,21 +604,58 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
               </table>
             </div>
 
-            <div className="bg-[#0f172a] p-10 px-12 grid grid-cols-2 lg:grid-cols-5 gap-8">
-              <div className="space-y-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">TOTAL TRIBUTÁVEL</p><p className="text-xl font-black text-white">{totals.taxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
-              <div className="space-y-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{invoiceType === 'PURCHASE' ? 'TOTAL IVA SUPORTADO' : 'TOTAL IVA LIQUIDADO'}</p><p className="text-xl font-black text-white">{(invoiceType === 'PURCHASE' ? totals.supported : totals.liquidated).toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
-              <div className="space-y-1"><p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{invoiceType === 'PURCHASE' ? 'TOTAL IVA DEDUTÍVEL' : 'TOTAL IVA CATIVO'}</p><p className="text-xl font-black text-emerald-400">{(invoiceType === 'PURCHASE' ? totals.deductible : totals.cative).toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
-              <div className="space-y-1"><p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">TOTAL RETENÇÃO</p><p className="text-xl font-black text-amber-400">{totals.withholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
-              <div className="space-y-1 border-l border-slate-800 pl-8"><p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">TOTAL DO DOCUMENTO</p><p className="text-2xl font-black text-blue-500">{totals.document.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</p></div>
+            {/* Footer / Totals */}
+            <div className="bg-slate-50 border-t border-slate-200 p-6 grid grid-cols-12 gap-8">
+              <div className="col-span-12 md:col-span-6">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">
+                  Notas Internas
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Observações..."
+                  className="w-full h-24 p-3 bg-white border border-slate-200 rounded-md outline-none resize-none text-sm text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                />
+              </div>
+              <div className="col-span-12 md:col-span-6 flex flex-col gap-3 justify-center">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500 font-medium">Total Tributável</span>
+                  <span className="font-bold text-slate-800">{totals.taxable.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500 font-medium">{invoiceType === 'PURCHASE' ? 'IVA Suportado' : 'IVA Liquidado'}</span>
+                  <span className="font-bold text-slate-800">{(invoiceType === 'PURCHASE' ? totals.supported : totals.liquidated).toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500 font-medium">{invoiceType === 'PURCHASE' ? 'IVA Dedutível' : 'IVA Cativo'}</span>
+                  <span className="font-bold text-emerald-600">{(invoiceType === 'PURCHASE' ? totals.deductible : totals.cative).toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500 font-medium">Total Retenção</span>
+                  <span className="font-bold text-amber-600">{totals.withholding.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</span>
+                </div>
+                <div className="h-px bg-slate-200 my-1"></div>
+                <div className="flex justify-between items-center text-lg">
+                  <span className="text-slate-800 font-black">Total Documento</span>
+                  <span className="font-black text-blue-600">{totals.document.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => { setShowCreator(false); resetForm(); if (onClose) onClose(); }}
+              className="px-6 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors"
+            >
+              Cancelar
+            </button>
             <button
               type="submit" disabled={isSubmitting}
-              className="px-16 py-5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-3xl flex items-center gap-4 shadow-2xl shadow-blue-600/30 transition-all active:scale-95 disabled:opacity-50"
+              className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-50 text-sm"
             >
-              {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : <>{editingInvoice ? <Save size={24} /> : <FilePlus2 size={24} />} {editingInvoice ? 'Guardar Alterações' : 'Guardar Factura'}</>}
+              {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <>{editingInvoice ? <Save size={18} /> : <FilePlus2 size={18} />} {editingInvoice ? 'Guardar Alterações' : 'Lançar Documento'}</>}
             </button>
           </div>
         </form>
@@ -609,36 +664,37 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
   }
 
   return (
-    <div className="animate-in fade-in duration-500 space-y-6">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div className="animate-in fade-in duration-500 space-y-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
         <div className="relative w-full sm:w-96">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
-            type="text" placeholder="Pesquisar por Fornecedor ou Doc#..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm font-medium text-slate-800"
+            type="text" placeholder="Pesquisar facturas..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm font-medium text-slate-700"
           />
         </div>
         <button
           onClick={() => { resetForm(); setShowCreator(true); }}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-8 py-3.5 rounded-2xl font-black transition-all shadow-xl shadow-slate-900/10 active:scale-95"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-bold transition-all shadow-sm active:scale-95 text-sm"
         >
-          <Plus size={20} />
+          <Plus size={18} />
           <span>Lançar Factura</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200">
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">ORD</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fornecedor</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Data</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Doc#</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor Total</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right w-24">Acções</th>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-20">ORD</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-24">Tipo</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Entidade</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-32">Data</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-32">Doc#</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-28">Estado</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right w-40">Valor Total</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right w-28">Acções</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -649,56 +705,79 @@ const Invoices: React.FC<InvoicesProps> = ({ invoices, setInvoices, suppliers, c
                 return (i.documentNumber || "").toLowerCase().includes(term) ||
                   (s?.name || "").toLowerCase().includes(term) ||
                   (c?.name || "").toLowerCase().includes(term);
-              }).map(i => (
-                <tr key={i.id} className="hover:bg-blue-50/30 transition-colors group cursor-default">
-                  <td className="px-8 py-5"><span className="text-xs font-black text-slate-300 group-hover:text-blue-500 transition-colors">#{i.orderNumber}</span></td>
-                  <td className="px-8 py-5">
-                    <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-black font-mono">
-                      {documentTypes.find(dt => dt.id === i.documentTypeId)?.code || '---'}
-                    </span>
-                  </td>
-                  <td className="px-8 py-5">
-                    <p className="font-bold text-slate-800 text-base">
-                      {i.type === 'PURCHASE'
-                        ? (suppliers.find(s => s.id === i.supplierId)?.name || 'N/A')
-                        : (clients.find(c => c.id === i.clientId)?.name || 'N/A')
-                      }
-                    </p>
-                    {i.archives && i.archives.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {i.archives.map(a => (
-                          <span key={a.id} className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-[9px] font-bold border border-amber-100 flex items-center gap-1">
-                            <Folder size={8} /> {a.description}
-                          </span>
-                        ))}
+              }).map(i => {
+                const docType = documentTypes.find(dt => dt.id === i.documentTypeId);
+                const docCode = docType?.code || i.documentTypeId || '?';
+
+                return (
+                  <tr key={i.id} className="hover:bg-slate-50 transition-colors group cursor-default">
+                    <td className="px-4 py-3"><span className="text-xs font-bold text-slate-400 group-hover:text-blue-600 transition-colors">#{i.orderNumber}</span></td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${docCode === 'FT' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                        docCode === 'FR' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                          docCode === 'NC' ? 'bg-red-50 text-red-700 border-red-100' :
+                            'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}>
+                        {docCode}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-700 text-sm truncate max-w-[250px]">
+                          {i.type === 'PURCHASE'
+                            ? (suppliers.find(s => s.id === i.supplierId)?.name || 'N/A')
+                            : (clients.find(c => c.id === i.clientId)?.name || 'N/A')
+                          }
+                        </span>
+                        {i.archives && i.archives.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {i.archives.map(a => (
+                              <span key={a.id} className="text-[9px] text-blue-600 flex items-center gap-0.5">
+                                <Folder size={8} /> {a.description}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </td>
-                  <td className="px-8 py-5 text-center"><span className="text-sm font-semibold text-slate-600">{i.date}</span></td>
-                  <td className="px-8 py-5 text-center"><span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-mono font-black border border-slate-200 group-hover:bg-white transition-colors">{i.documentNumber}</span></td>
-                  <td className="px-8 py-5 text-right font-black text-slate-900 text-base">{i.totalDocument.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</td>
-                  <td className="px-8 py-5 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleEdit(i)} className="p-2 text-blue-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-blue-100 transition-all" title="Ver/Editar Detalhes">
-                        <Edit3 size={18} />
-                      </button>
-                      {i.hasPdf && (
-                        <button onClick={() => handleDownload(i)} className="p-2 text-emerald-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-emerald-100 transition-all" title="Baixar PDF">
-                          <Download size={18} />
+                    </td>
+                    <td className="px-4 py-3 text-center"><span className="text-xs font-medium text-slate-600">{i.date}</span></td>
+                    <td className="px-4 py-3 text-center"><span className="text-xs font-medium text-slate-600 font-mono bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{i.documentNumber}</span></td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-[10px] font-bold flex items-center justify-center gap-1 w-fit mx-auto">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Emitida
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-slate-800 text-sm">{i.totalDocument.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleEdit(i)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Editar">
+                          <Edit3 size={16} />
                         </button>
-                      )}
-                      <button
-                        onClick={() => removeInvoice(i)}
-                        disabled={deletingId === i.id}
-                        className="p-2 text-red-400 hover:text-red-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-red-100 transition-all"
-                        title="Eliminar Factura"
-                      >
-                        {deletingId === i.id ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
-                      </button>
-                    </div>
+                        {i.hasPdf && (
+                          <button onClick={() => handleDownload(i)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="PDF">
+                            <Download size={16} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => removeInvoice(i)}
+                          disabled={deletingId === i.id}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="Eliminar"
+                        >
+                          {deletingId === i.id ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {invoices.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-slate-400 text-sm">
+                    Nenhuma factura encontrada. Clique em "Lançar Factura" para começar.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

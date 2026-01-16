@@ -114,6 +114,23 @@ contextBridge.exposeInMainWorld('electron', {
         markAllAsRead: () => ipcRenderer.invoke('db:markAllAsRead'),
         addNotification: (data) => ipcRenderer.invoke('db:addNotification', data),
         deleteNotification: (id) => ipcRenderer.invoke('db:deleteNotification', id),
+
+        // Fiscal Classifications
+        getIVAClassifications: () => ipcRenderer.invoke('db:getIVAClassifications'),
+        addIVAClassification: (iva) => ipcRenderer.invoke('db:addIVAClassification', iva),
+        updateIVAClassification: (iva) => ipcRenderer.invoke('db:updateIVAClassification', iva),
+        deleteIVAClassification: (id) => ipcRenderer.invoke('db:deleteIVAClassification', id),
+        seedDefaultIVA: () => ipcRenderer.invoke('db:seedDefaultIVA'),
+
+        getStampDutyClassifications: () => ipcRenderer.invoke('db:getStampDutyClassifications'),
+        addStampDutyClassification: (sd) => ipcRenderer.invoke('db:addStampDutyClassification', sd),
+        updateStampDutyClassification: (sd) => ipcRenderer.invoke('db:updateStampDutyClassification', sd),
+        deleteStampDutyClassification: (id) => ipcRenderer.invoke('db:deleteStampDutyClassification', id),
+
+        getIndustrialTaxClassifications: () => ipcRenderer.invoke('db:getIndustrialTaxClassifications'),
+        addIndustrialTaxClassification: (it) => ipcRenderer.invoke('db:addIndustrialTaxClassification', it),
+        updateIndustrialTaxClassification: (it) => ipcRenderer.invoke('db:updateIndustrialTaxClassification', it),
+        deleteIndustrialTaxClassification: (id) => ipcRenderer.invoke('db:deleteIndustrialTaxClassification', id),
     },
 
     auth: {

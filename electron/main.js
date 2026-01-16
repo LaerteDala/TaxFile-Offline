@@ -119,8 +119,6 @@ ipcMain.handle('db:getSubsidies', async () => dbOps.getSubsidies());
 ipcMain.handle('db:addSubsidy', async (_, subsidy) => dbOps.addSubsidy(subsidy));
 ipcMain.handle('db:updateSubsidy', async (_, subsidy) => dbOps.updateSubsidy(subsidy));
 ipcMain.handle('db:deleteSubsidy', async (_, id) => dbOps.deleteSubsidy(id));
-
-// Remuneration Maps
 ipcMain.handle('db:getRemunerationMaps', async () => dbOps.getRemunerationMaps());
 ipcMain.handle('db:getRemunerationMap', async (_, id) => dbOps.getRemunerationMap(id));
 ipcMain.handle('db:addRemunerationMap', async (_, map) => dbOps.addRemunerationMap(map));
@@ -133,6 +131,23 @@ ipcMain.handle('db:deleteRemunerationLine', async (_, id) => dbOps.deleteRemuner
 
 ipcMain.handle('db:addRemunerationLineSubsidy', async (_, subsidy) => dbOps.addRemunerationLineSubsidy(subsidy));
 ipcMain.handle('db:deleteRemunerationLineSubsidies', async (_, lineId) => dbOps.deleteRemunerationLineSubsidies(lineId));
+
+// Fiscal Classifications
+ipcMain.handle('db:getIVAClassifications', async () => dbOps.getIVAClassifications());
+ipcMain.handle('db:addIVAClassification', async (_, iva) => dbOps.addIVAClassification(iva));
+ipcMain.handle('db:updateIVAClassification', async (_, iva) => dbOps.updateIVAClassification(iva));
+ipcMain.handle('db:deleteIVAClassification', async (_, id) => dbOps.deleteIVAClassification(id));
+ipcMain.handle('db:seedDefaultIVA', async () => dbOps.seedDefaultIVA());
+
+ipcMain.handle('db:getStampDutyClassifications', async () => dbOps.getStampDutyClassifications());
+ipcMain.handle('db:addStampDutyClassification', async (_, sd) => dbOps.addStampDutyClassification(sd));
+ipcMain.handle('db:updateStampDutyClassification', async (_, sd) => dbOps.updateStampDutyClassification(sd));
+ipcMain.handle('db:deleteStampDutyClassification', async (_, id) => dbOps.deleteStampDutyClassification(id));
+
+ipcMain.handle('db:getIndustrialTaxClassifications', async () => dbOps.getIndustrialTaxClassifications());
+ipcMain.handle('db:addIndustrialTaxClassification', async (_, it) => dbOps.addIndustrialTaxClassification(it));
+ipcMain.handle('db:updateIndustrialTaxClassification', async (_, it) => dbOps.updateIndustrialTaxClassification(it));
+ipcMain.handle('db:deleteIndustrialTaxClassification', async (_, id) => dbOps.deleteIndustrialTaxClassification(id));
 
 // Archives
 ipcMain.handle('db:getArchives', async () => dbOps.getArchives());

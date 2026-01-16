@@ -19,7 +19,7 @@ export const useAppData = () => {
                 suppliersData, clientsData, staffData, invoicesData,
                 docTypesData, wtData, ccData, companyData,
                 provData, muniData, deptsData, jfsData, deadlineData,
-                notificationsData
+                notificationsData, ivaClassData, sdClassData, itClassData
             ] = await Promise.all([
                 window.electron.db.getSuppliers(),
                 window.electron.db.getClients(),
@@ -34,7 +34,10 @@ export const useAppData = () => {
                 window.electron.db.getDepartments(),
                 window.electron.db.getJobFunctions(),
                 window.electron.db.getDeadlineSummary(),
-                window.electron.db.getNotifications()
+                window.electron.db.getNotifications(),
+                window.electron.db.getIVAClassifications(),
+                window.electron.db.getStampDutyClassifications(),
+                window.electron.db.getIndustrialTaxClassifications()
             ]);
 
             entity.setSuppliers(suppliersData || []);
@@ -51,6 +54,9 @@ export const useAppData = () => {
             entity.setJobFunctions(jfsData || []);
             notifications.setDeadlineSummary(deadlineData || { expired: 0, upcoming: 0, total: 0 });
             notifications.setNotifications(notificationsData || []);
+            entity.setIvaClassifications(ivaClassData || []);
+            entity.setStampDutyClassifications(sdClassData || []);
+            entity.setIndustrialTaxClassifications(itClassData || []);
 
             if (deadlineData && deadlineData.total > 0) {
                 notifications.checkDeadlinesAndNotify();

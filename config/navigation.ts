@@ -144,7 +144,7 @@ export const navigation: NavItem[] = [
         icon: FileSpreadsheet,
         id: 'tax_iva',
         subItems: [
-            { name: 'Consolidação do IVA', icon: FileSpreadsheet, view: 'tax_iva' as View },
+            { name: 'Cons. do IVA', icon: FileSpreadsheet, view: 'tax_iva' as View },
         ]
     },
     {

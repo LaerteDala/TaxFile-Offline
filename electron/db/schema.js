@@ -262,9 +262,42 @@ export function initDb() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(document_id, archive_id, document_type)
         );
+
+        CREATE TABLE IF NOT EXISTS iva_classifications (
+            id TEXT PRIMARY KEY,
+            code TEXT UNIQUE NOT NULL,
+            description TEXT NOT NULL,
+            taxable_base_line TEXT,
+            taxpayer_tax_line TEXT,
+            state_tax_line TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS stamp_duty_classifications (
+            id TEXT PRIMARY KEY,
+            code TEXT UNIQUE NOT NULL,
+            description TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS industrial_tax_classifications (
+            id TEXT PRIMARY KEY,
+            code TEXT UNIQUE NOT NULL,
+            description TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     `);
 
     // Migrations: Add columns if they don't exist
+    const tableInfoDocTypes = db.prepare("PRAGMA table_info(document_types)").all();
+    if (!tableInfoDocTypes.some(col => col.name === 'subject_to_iva')) db.exec("ALTER TABLE document_types ADD COLUMN subject_to_iva INTEGER DEFAULT 0;");
+    if (!tableInfoDocTypes.some(col => col.name === 'subject_to_stamp_duty')) db.exec("ALTER TABLE document_types ADD COLUMN subject_to_stamp_duty INTEGER DEFAULT 0;");
+    if (!tableInfoDocTypes.some(col => col.name === 'subject_to_industrial_tax')) db.exec("ALTER TABLE document_types ADD COLUMN subject_to_industrial_tax INTEGER DEFAULT 0;");
+
+    let tableInfoTaxLines = db.prepare("PRAGMA table_info(tax_lines)").all();
+    if (!tableInfoTaxLines.some(col => col.name === 'iva_classification_id')) db.exec("ALTER TABLE tax_lines ADD COLUMN iva_classification_id TEXT;");
+    if (!tableInfoTaxLines.some(col => col.name === 'stamp_duty_classification_id')) db.exec("ALTER TABLE tax_lines ADD COLUMN stamp_duty_classification_id TEXT;");
+    if (!tableInfoTaxLines.some(col => col.name === 'industrial_tax_classification_id')) db.exec("ALTER TABLE tax_lines ADD COLUMN industrial_tax_classification_id TEXT;");
     const tableInfoSuppliers = db.prepare("PRAGMA table_info(suppliers)").all();
     if (!tableInfoSuppliers.some(col => col.name === 'in_angola')) db.exec("ALTER TABLE suppliers ADD COLUMN in_angola INTEGER DEFAULT 1;");
     if (!tableInfoSuppliers.some(col => col.name === 'iva_regime')) db.exec("ALTER TABLE suppliers ADD COLUMN iva_regime TEXT DEFAULT 'Geral';");
@@ -278,7 +311,7 @@ export function initDb() {
     if (!tableInfoInvoices.some(col => col.name === 'archive_id')) db.exec("ALTER TABLE invoices ADD COLUMN archive_id TEXT;");
     if (!tableInfoInvoices.some(col => col.name === 'due_date')) db.exec("ALTER TABLE invoices ADD COLUMN due_date TEXT;");
 
-    const tableInfoTaxLines = db.prepare("PRAGMA table_info(tax_lines)").all();
+    tableInfoTaxLines = db.prepare("PRAGMA table_info(tax_lines)").all();
     if (!tableInfoTaxLines.some(col => col.name === 'liquidated_vat')) db.exec("ALTER TABLE tax_lines ADD COLUMN liquidated_vat REAL DEFAULT 0;");
     if (!tableInfoTaxLines.some(col => col.name === 'cative_vat')) db.exec("ALTER TABLE tax_lines ADD COLUMN cative_vat REAL DEFAULT 0;");
     if (!tableInfoTaxLines.some(col => col.name === 'withholding_type_id')) db.exec("ALTER TABLE tax_lines ADD COLUMN withholding_type_id TEXT;");
@@ -292,6 +325,52 @@ export function initDb() {
 
     const tableInfoArchives = db.prepare("PRAGMA table_info(archives)").all();
     if (!tableInfoArchives.some(col => col.name === 'date')) db.exec("ALTER TABLE archives ADD COLUMN date TEXT;");
+
+    const tableInfoIVA = db.prepare("PRAGMA table_info(iva_classifications)").all();
+    if (!tableInfoIVA.some(col => col.name === 'taxable_base_line')) db.exec("ALTER TABLE iva_classifications ADD COLUMN taxable_base_line TEXT;");
+    if (!tableInfoIVA.some(col => col.name === 'taxpayer_tax_line')) db.exec("ALTER TABLE iva_classifications ADD COLUMN taxpayer_tax_line TEXT;");
+    if (!tableInfoIVA.some(col => col.name === 'state_tax_line')) db.exec("ALTER TABLE iva_classifications ADD COLUMN state_tax_line TEXT;");
+
+    // Ensure default IVA classifications exist and are up to date
+    const defaultIVA = [
+        { code: '1', description: 'Transmissão de bens e prestação de serviços em que liquidou imposto', base: '1', taxpayer: null, state: '2' },
+        { code: '1.1', description: 'Transmissões de bens efectuadas na Província de Cabinda em que liquidou o imposto à taxa reduzida', base: '1.1', taxpayer: null, state: '2.1' },
+        { code: '1.2', description: 'Transmissões de bens e prestações de serviços em que liquidou imposto à taxa reduzida de 5%', base: '1.2', taxpayer: null, state: '2.2' },
+        { code: '1.3', description: 'Transmissões de bens e prestações de serviços em que liquidou imposto à taxa reduzida de 7%', base: '1.2', taxpayer: null, state: '2.3' },
+        { code: '3', description: 'Transmissões de bens e prestações de serviços abrangidas pelo regime de caixa (art. 66.º do CIVA)', base: '3', taxpayer: null, state: '4' },
+        { code: '3.1', description: 'Transmissões de bens e prestações de serviços abrangidas pelo regime de caixa (art. 60.º do CIVA) efectuadas na Província de Cabinda', base: '3.1', taxpayer: null, state: '4.1' },
+        { code: '3.2', description: 'Transmissões de bens e prestações de serviços em que liquidou imposto a taxa reduzida de 5% abrangidas pelo regime de caixa (art. 60.º do CIVA)', base: '3.2', taxpayer: null, state: '4.2' },
+        { code: '3.3', description: 'Transmissões de bens e prestações de serviços em que liquidou imposto a taxa reduzida de 7% abrangidas pelo regime de caixa (art. 60.º do CIVA)', base: '3.3', taxpayer: null, state: '4.3' },
+        { code: '5', description: 'Operações em que o IVA foi cativo pelo declarante (art. 21.º do CIVA)', base: '5', taxpayer: '6', state: '7' },
+        { code: '8', description: 'Operações em que o IVA foi cativo pelo cliente (art. 31.º do CIVA)', base: '8', taxpayer: '9', state: null },
+        { code: '8.1', description: 'Imposto retido nos Terminais de Pagamento Automático (TPA) do declarante', base: '8.1', taxpayer: '9.1', state: null },
+        { code: '10', description: 'Isentas com direito à dedução', base: '10', taxpayer: null, state: null },
+        { code: '11', description: 'Isentas sem direito à dedução (art. 12.º excluindo a alínea a) do CIVA)', base: '11', taxpayer: null, state: null },
+        { code: '12', description: 'Não tributadas (art. 10.º do CIVA)', base: '12', taxpayer: null, state: null },
+        { code: 'SCE', description: 'Serviços Contratados no Estrangeiro', base: '13', taxpayer: '14', state: '15' },
+        { code: 'MFI', description: 'Meios Fixos e Investimentos', base: '16', taxpayer: '17', state: null },
+        { code: 'INV', description: 'Existências/Inventário', base: '18', taxpayer: '19', state: null },
+        { code: 'OBC', description: 'Outros Bens de Consumo', base: '20', taxpayer: '21', state: null },
+        { code: 'SERV', description: 'Serviços', base: '22', taxpayer: '23', state: null },
+        { code: 'IMPT', description: 'Importação', base: '24', taxpayer: '25', state: null },
+        { code: 'REG_CAT', description: 'Regularizações do imposto cativo', base: null, taxpayer: '26', state: '27' },
+        { code: 'REG_PRO', description: 'Regularizações do pro rata', base: null, taxpayer: '26.1', state: '27.1' },
+        { code: 'REG_MS1', description: 'Regularizações mensais ou anuais, efectuadas pelo sujeito passivo', base: null, taxpayer: '28', state: '29' },
+        { code: 'REG_MS2', description: 'Regularizações mensais ou anuais, efectuadas pelo sujeito passivo', base: null, taxpayer: '28.1', state: null }
+    ];
+
+    const checkIVA = db.prepare('SELECT id FROM iva_classifications WHERE code = ?');
+    const insertIVA = db.prepare('INSERT INTO iva_classifications (id, code, description, taxable_base_line, taxpayer_tax_line, state_tax_line) VALUES (?, ?, ?, ?, ?, ?)');
+    const updateIVA = db.prepare('UPDATE iva_classifications SET description = ?, taxable_base_line = ?, taxpayer_tax_line = ?, state_tax_line = ? WHERE code = ?');
+
+    defaultIVA.forEach(iva => {
+        const existing = checkIVA.get(iva.code);
+        if (existing) {
+            updateIVA.run(iva.description, iva.base, iva.taxpayer, iva.state, iva.code);
+        } else {
+            insertIVA.run(crypto.randomUUID(), iva.code, iva.description, iva.base, iva.taxpayer, iva.state);
+        }
+    });
 
     // Migration: Move existing archive_id to document_archives
     const docArchivesCount = db.prepare('SELECT count(*) as count FROM document_archives').get().count;
@@ -506,6 +585,8 @@ export function initDb() {
             FOREIGN KEY (document_id) REFERENCES general_documents(id) ON DELETE CASCADE
         );
     `);
+
+    // Add a default user if none exists
 
     // Add a default user if none exists
     const userCount = db.prepare('SELECT count(*) as count FROM users').get().count;

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import {
     Supplier, Client, Staff, Invoice, DocumentType, WithholdingType,
     CCDocument, CompanyInfo, Province, Municipality, Department, JobFunction,
-    DeadlineSummary, AppNotification, GeneralDocument
+    DeadlineSummary, AppNotification, GeneralDocument,
+    IVAClassification, StampDutyClassification, IndustrialTaxClassification
 } from '../types';
 
 export const useEntityData = () => {
@@ -22,6 +23,9 @@ export const useEntityData = () => {
     const [provinces, setProvinces] = useState<Province[]>([]);
     const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
     const [selectedGeneralDocument, setSelectedGeneralDocument] = useState<GeneralDocument | null>(null);
+    const [ivaClassifications, setIvaClassifications] = useState<IVAClassification[]>([]);
+    const [stampDutyClassifications, setStampDutyClassifications] = useState<StampDutyClassification[]>([]);
+    const [industrialTaxClassifications, setIndustrialTaxClassifications] = useState<IndustrialTaxClassification[]>([]);
 
     const clearAllData = () => {
         setSuppliers([]);
@@ -36,6 +40,9 @@ export const useEntityData = () => {
         setCompanyInfo(null);
         setProvinces([]);
         setMunicipalities([]);
+        setIvaClassifications([]);
+        setStampDutyClassifications([]);
+        setIndustrialTaxClassifications([]);
     };
 
     return {
@@ -55,6 +62,9 @@ export const useEntityData = () => {
         provinces, setProvinces,
         municipalities, setMunicipalities,
         selectedGeneralDocument, setSelectedGeneralDocument,
+        ivaClassifications, setIvaClassifications,
+        stampDutyClassifications, setStampDutyClassifications,
+        industrialTaxClassifications, setIndustrialTaxClassifications,
         clearAllData
     };
 };

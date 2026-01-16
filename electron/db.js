@@ -12,6 +12,7 @@ import { remunerationRepo } from './db/repositories/remunerationRepo.js';
 import { documentRepo } from './db/repositories/documentRepo.js';
 import { deadlineRepo } from './db/repositories/deadlineRepo.js';
 import { notificationRepo } from './db/repositories/notificationRepo.js';
+import { fiscalRepo } from './db/repositories/fiscalRepo.js';
 
 // Initialize database schema
 initDb();
@@ -31,5 +32,6 @@ export const dbOps = {
     ...remunerationRepo,
     ...documentRepo,
     ...deadlineRepo,
-    ...notificationRepo
+    ...notificationRepo,
+    ...fiscalRepo
 };

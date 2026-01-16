@@ -2,14 +2,24 @@ import db from '../database.js';
 
 export const configRepo = {
     // Document Types
-    getDocumentTypes: () => db.prepare('SELECT * FROM document_types ORDER BY code').all(),
+    getDocumentTypes: () => db.prepare(`
+        SELECT 
+            id, 
+            code, 
+            name, 
+            subject_to_iva as subjectToIVA, 
+            subject_to_stamp_duty as subjectToStampDuty, 
+            subject_to_industrial_tax as subjectToIndustrialTax 
+        FROM document_types 
+        ORDER BY code
+    `).all(),
     addDocumentType: (docType) => {
-        const stmt = db.prepare('INSERT INTO document_types (id, code, name) VALUES (?, ?, ?)');
-        return stmt.run(docType.id, docType.code, docType.name);
+        const stmt = db.prepare('INSERT INTO document_types (id, code, name, subject_to_iva, subject_to_stamp_duty, subject_to_industrial_tax) VALUES (?, ?, ?, ?, ?, ?)');
+        return stmt.run(docType.id, docType.code, docType.name, docType.subjectToIVA ? 1 : 0, docType.subjectToStampDuty ? 1 : 0, docType.subjectToIndustrialTax ? 1 : 0);
     },
     updateDocumentType: (docType) => {
-        const stmt = db.prepare('UPDATE document_types SET code = ?, name = ? WHERE id = ?');
-        return stmt.run(docType.code, docType.name, docType.id);
+        const stmt = db.prepare('UPDATE document_types SET code = ?, name = ?, subject_to_iva = ?, subject_to_stamp_duty = ?, subject_to_industrial_tax = ? WHERE id = ?');
+        return stmt.run(docType.code, docType.name, docType.subjectToIVA ? 1 : 0, docType.subjectToStampDuty ? 1 : 0, docType.subjectToIndustrialTax ? 1 : 0, docType.id);
     },
     deleteDocumentType: (id) => db.prepare('DELETE FROM document_types WHERE id = ?').run(id),
 

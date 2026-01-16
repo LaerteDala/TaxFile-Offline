@@ -16,7 +16,10 @@ export const invoiceRepo = {
                 cativeVat: l.cative_vat,
                 isService: !!l.is_service,
                 withholdingAmount: l.withholding_amount,
-                withholdingTypeId: l.withholding_type_id
+                withholdingTypeId: l.withholding_type_id,
+                ivaClassificationId: l.iva_classification_id,
+                stampDutyClassificationId: l.stamp_duty_classification_id,
+                industrialTaxClassificationId: l.industrial_tax_classification_id
             }));
 
             return {
@@ -25,6 +28,7 @@ export const invoiceRepo = {
                 orderNumber: inv.order_number,
                 supplierId: inv.supplier_id,
                 clientId: inv.client_id,
+                documentTypeId: inv.document_type_id,
                 date: inv.date,
                 dueDate: inv.due_date,
                 documentNumber: inv.document_number,
