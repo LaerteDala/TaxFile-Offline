@@ -61,9 +61,9 @@ const Municipalities: React.FC = () => {
             }
 
             if (editingId) {
-                await window.electron.db.updateMunicipality({ id: editingId, province_id: provinceId, name: name.trim() });
+                await window.electron.db.updateMunicipality({ id: editingId, provinceId, name: name.trim() });
             } else {
-                await window.electron.db.addMunicipality({ id: crypto.randomUUID(), province_id: provinceId, name: name.trim() });
+                await window.electron.db.addMunicipality({ id: crypto.randomUUID(), provinceId, name: name.trim() });
             }
             setName('');
             setProvinceId('');
@@ -75,10 +75,10 @@ const Municipalities: React.FC = () => {
         }
     };
 
-    const handleEdit = (muni: Municipality) => {
-        setEditingId(muni.id);
-        setName(muni.name);
-        setProvinceId(muni.provinceId);
+    const handleEdit = (m: Municipality) => {
+        setEditingId(m.id);
+        setName(m.name);
+        setProvinceId(m.provinceId || (m as any).province_id || '');
         setShowCreator(true);
     };
 
@@ -90,7 +90,7 @@ const Municipalities: React.FC = () => {
     };
 
     const filteredMunicipalities = municipalities.filter(m => {
-        const province = provinces.find(p => p.id === m.provinceId);
+        const province = provinces.find(p => p.id === m.provinceId || p.id === (m as any).province_id);
         return m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             province?.name.toLowerCase().includes(searchTerm.toLowerCase());
     });
@@ -185,7 +185,7 @@ const Municipalities: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {filteredMunicipalities.map((m) => {
-                                const province = provinces.find(p => p.id === m.provinceId);
+                                const province = provinces.find(p => p.id === m.provinceId || p.id === (m as any).province_id);
                                 return (
                                     <tr key={m.id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="px-8 py-5">

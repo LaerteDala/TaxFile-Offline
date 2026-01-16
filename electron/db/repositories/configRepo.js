@@ -38,14 +38,20 @@ export const configRepo = {
     deleteProvince: (id) => db.prepare('DELETE FROM provinces WHERE id = ?').run(id),
 
     // Municipalities
-    getMunicipalities: () => db.prepare('SELECT * FROM municipalities ORDER BY name').all(),
+    getMunicipalities: () => {
+        const municipalities = db.prepare('SELECT * FROM municipalities ORDER BY name').all();
+        return municipalities.map(m => ({
+            ...m,
+            provinceId: m.province_id
+        }));
+    },
     addMunicipality: (municipality) => {
         const stmt = db.prepare('INSERT INTO municipalities (id, province_id, name) VALUES (?, ?, ?)');
-        return stmt.run(municipality.id, municipality.province_id, municipality.name);
+        return stmt.run(municipality.id, municipality.provinceId || municipality.province_id, municipality.name);
     },
     updateMunicipality: (municipality) => {
         const stmt = db.prepare('UPDATE municipalities SET province_id = ?, name = ? WHERE id = ?');
-        return stmt.run(municipality.province_id, municipality.name, municipality.id);
+        return stmt.run(municipality.provinceId || municipality.province_id, municipality.name, municipality.id);
     },
     deleteMunicipality: (id) => db.prepare('DELETE FROM municipalities WHERE id = ?').run(id),
 

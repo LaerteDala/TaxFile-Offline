@@ -36,7 +36,7 @@ const DocumentTypes: React.FC<DocumentTypesProps> = ({ documentTypes, setDocumen
     });
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
-    const filteredTypes = documentTypes.filter(t => {
+    const filteredTypes = (documentTypes || []).filter(t => {
         const code = (t.code || "").toLowerCase();
         const name = (t.name || "").toLowerCase();
         const term = searchTerm.toLowerCase();

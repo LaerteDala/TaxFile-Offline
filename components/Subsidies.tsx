@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Table,
     Plus,
+    Search,
     Edit2,
     Trash2,
     X,
@@ -32,6 +33,8 @@ const Subsidies: React.FC<SubsidiesProps> = ({ onBack }) => {
         irt_limit_type: 'none',
         irt_limit_value: 0
     });
+
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         loadSubsidies();
@@ -101,9 +104,13 @@ const Subsidies: React.FC<SubsidiesProps> = ({ onBack }) => {
         }).format(value);
     };
 
+    const filteredSubsidies = subsidies.filter(s =>
+        s.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
-        <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
+        <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={onBack}
@@ -123,79 +130,122 @@ const Subsidies: React.FC<SubsidiesProps> = ({ onBack }) => {
                 </div>
                 <button
                     onClick={() => setShowModal(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 font-medium"
+                    className="flex items-center justify-center gap-2 px-8 py-4 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 font-black active:scale-95"
                 >
                     <Plus size={20} />
                     Novo Subsídio
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {subsidies.map((subsidy) => (
-                    <div key={subsidy.id} className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-900/5 transition-all duration-300">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                                <Coins size={24} />
-                            </div>
-                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={() => handleEdit(subsidy)}
-                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                >
-                                    <Edit2 size={18} />
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(subsidy.id)}
-                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
-                            </div>
-                        </div>
-
-                        <h3 className="text-lg font-bold text-slate-800 mb-4">{subsidy.name}</h3>
-
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl text-sm">
-                                <span className="text-slate-500 font-medium">Sujeito a INSS</span>
-                                {subsidy.subject_to_inss ? (
-                                    <div className="flex items-center gap-1.5 text-emerald-600 font-bold">
-                                        <Check size={16} />
-                                        <span>Sim</span>
-                                    </div>
-                                ) : (
-                                    <span className="text-slate-400 font-medium">Não</span>
-                                )}
-                            </div>
-                            {subsidy.subject_to_inss === 1 && (
-                                <div className="px-3 text-xs text-slate-500">
-                                    {subsidy.inss_limit_type === 'none' && 'Sem limite de isenção'}
-                                    {subsidy.inss_limit_type === 'fixed' && `Isento até ${formatCurrency(subsidy.inss_limit_value)}`}
-                                    {subsidy.inss_limit_type === 'percentage' && `Isento até ${subsidy.inss_limit_value}% do Salário Base`}
-                                </div>
-                            )}
-
-                            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl text-sm">
-                                <span className="text-slate-500 font-medium">Sujeito a IRT</span>
-                                {subsidy.subject_to_irt ? (
-                                    <div className="flex items-center gap-1.5 text-rose-600 font-bold">
-                                        <Check size={16} />
-                                        <span>Sim</span>
-                                    </div>
-                                ) : (
-                                    <span className="text-slate-400 font-medium">Não</span>
-                                )}
-                            </div>
-                            {subsidy.subject_to_irt === 1 && (
-                                <div className="px-3 text-xs text-slate-500">
-                                    {subsidy.irt_limit_type === 'none' && 'Sem limite de isenção'}
-                                    {subsidy.irt_limit_type === 'fixed' && `Isento até ${formatCurrency(subsidy.irt_limit_value)}`}
-                                    {subsidy.irt_limit_type === 'percentage' && `Isento até ${subsidy.irt_limit_value}% do Salário Base`}
-                                </div>
-                            )}
-                        </div>
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-8 border-b border-slate-100">
+                    <div className="relative max-w-md">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Pesquisar subsídio ou abono..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-bold text-slate-600 transition-all"
+                        />
                     </div>
-                ))}
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Subsídio / Abono</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Incidência INSS</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Incidência IRT</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Acções</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {filteredSubsidies.map((subsidy) => (
+                                <tr key={subsidy.id} className="hover:bg-emerald-50/30 transition-colors group">
+                                    <td className="px-8 py-5">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                                                <Coins size={20} />
+                                            </div>
+                                            <p className="font-bold text-slate-800 text-base">{subsidy.name}</p>
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-5">
+                                        <div className="space-y-1">
+                                            {subsidy.subject_to_inss ? (
+                                                <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm">
+                                                    <Check size={16} />
+                                                    <span>Sujeito</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-400 font-medium text-sm">Não Sujeito</span>
+                                            )}
+                                            {subsidy.subject_to_inss === 1 && (
+                                                <p className="text-[10px] text-slate-500 font-medium">
+                                                    {subsidy.inss_limit_type === 'none' && 'Sem limite de isenção'}
+                                                    {subsidy.inss_limit_type === 'fixed' && `Isento até ${formatCurrency(subsidy.inss_limit_value)}`}
+                                                    {subsidy.inss_limit_type === 'percentage' && `Isento até ${subsidy.inss_limit_value}%`}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-5">
+                                        <div className="space-y-1">
+                                            {subsidy.subject_to_irt ? (
+                                                <div className="flex items-center gap-1.5 text-rose-600 font-bold text-sm">
+                                                    <Check size={16} />
+                                                    <span>Sujeito</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-400 font-medium text-sm">Não Sujeito</span>
+                                            )}
+                                            {subsidy.subject_to_irt === 1 && (
+                                                <p className="text-[10px] text-slate-500 font-medium">
+                                                    {subsidy.irt_limit_type === 'none' && 'Sem limite de isenção'}
+                                                    {subsidy.irt_limit_type === 'fixed' && `Isento até ${formatCurrency(subsidy.irt_limit_value)}`}
+                                                    {subsidy.irt_limit_type === 'percentage' && `Isento até ${subsidy.irt_limit_value}%`}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-5 text-right">
+                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => handleEdit(subsidy)}
+                                                className="p-2.5 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all shadow-sm active:scale-95"
+                                                title="Editar"
+                                            >
+                                                <Edit2 size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(subsidy.id)}
+                                                className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 rounded-xl transition-all shadow-sm active:scale-95"
+                                                title="Remover"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {filteredSubsidies.length === 0 && (
+                                <tr>
+                                    <td colSpan={4} className="px-8 py-24 text-center">
+                                        <div className="flex flex-col items-center justify-center text-slate-400">
+                                            <div className="p-6 bg-slate-50 rounded-full mb-4">
+                                                <Coins size={64} className="opacity-10" />
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-500">Nenhum subsídio encontrado</p>
+                                            <p className="text-sm">Tente ajustar a sua pesquisa ou crie um novo.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {showModal && (

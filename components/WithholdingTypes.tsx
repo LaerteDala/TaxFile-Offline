@@ -30,7 +30,7 @@ const WithholdingTypes: React.FC<WithholdingTypesProps> = ({ withholdingTypes, s
     const [rate, setRate] = useState<number>(0);
 
     const filteredTypes = useMemo(() => {
-        return withholdingTypes.filter(wt =>
+        return (withholdingTypes || []).filter(wt =>
             wt.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [withholdingTypes, searchTerm]);
@@ -46,7 +46,7 @@ const WithholdingTypes: React.FC<WithholdingTypesProps> = ({ withholdingTypes, s
         if (!name || rate < 0) return;
         setIsLoading(true);
         try {
-            const isDuplicate = withholdingTypes.some(wt => wt.name.toLowerCase() === name.toLowerCase());
+            const isDuplicate = (withholdingTypes || []).some(wt => wt.name.toLowerCase() === name.toLowerCase());
             if (isDuplicate) {
                 alert(`O imposto "${name}" já existe.`);
                 setIsLoading(false);
@@ -67,7 +67,7 @@ const WithholdingTypes: React.FC<WithholdingTypesProps> = ({ withholdingTypes, s
         if (!editingId || !name || rate < 0) return;
         setIsLoading(true);
         try {
-            const isDuplicate = withholdingTypes.some(wt => wt.name.toLowerCase() === name.toLowerCase() && wt.id !== editingId);
+            const isDuplicate = (withholdingTypes || []).some(wt => wt.name.toLowerCase() === name.toLowerCase() && wt.id !== editingId);
             if (isDuplicate) {
                 alert(`O imposto "${name}" já existe.`);
                 setIsLoading(false);
@@ -143,8 +143,8 @@ const WithholdingTypes: React.FC<WithholdingTypesProps> = ({ withholdingTypes, s
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                disabled={editingId !== null && ['IRT Grupo B', 'Imposto Industrial', 'Imposto Predial'].includes(withholdingTypes.find(wt => wt.id === editingId)?.name || '')}
-                                className={`w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 ${editingId !== null && ['IRT Grupo B', 'Imposto Industrial', 'Imposto Predial'].includes(withholdingTypes.find(wt => wt.id === editingId)?.name || '') ? 'bg-slate-100 cursor-not-allowed' : 'bg-slate-50'}`}
+                                disabled={editingId !== null && ['IRT Grupo B', 'Imposto Industrial', 'Imposto Predial'].includes((withholdingTypes || []).find(wt => wt.id === editingId)?.name || '')}
+                                className={`w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 ${editingId !== null && ['IRT Grupo B', 'Imposto Industrial', 'Imposto Predial'].includes((withholdingTypes || []).find(wt => wt.id === editingId)?.name || '') ? 'bg-slate-100 cursor-not-allowed' : 'bg-slate-50'}`}
                                 placeholder="Ex: Imposto Industrial"
                             />
                         </div>

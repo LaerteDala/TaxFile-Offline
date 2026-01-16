@@ -211,6 +211,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
                 <FiscalParameters
                     documentTypes={documentTypes}
                     setDocumentTypes={setDocumentTypes}
+                    withholdingTypes={withholdingTypes}
                     setWithholdingTypes={setWithholdingTypes}
                     onBack={() => setCurrentView('settings')}
                 />
